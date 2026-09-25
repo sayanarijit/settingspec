@@ -10,7 +10,6 @@
 [![Crates.io Version](https://img.shields.io/crates/v/settingspec)](https://crates.io/crates/settingspec)
 [![PyPI Version](https://img.shields.io/pypi/v/settingspec)](https://pypi.org/project/settingspec)
 [![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fsettingspec)](https://www.npmjs.com/package/@sayanarijit/settingspec)
-[![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/settingspec?label=docker)](https://hub.docker.com/r/sayanarijit/settingspec)
 
 1. [Concepts](#concepts)
    1. [Single file convenience](#single-file-convenience)
