@@ -2,6 +2,7 @@ name: SettingSpec Check
 on: [push, pull_request]
 permissions:
   contents: read
+  packages: read
 jobs:
   check-settings:
     runs-on: ubuntu-latest
@@ -10,4 +11,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check settingspec.toml
-        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/settingspec:v0.1.0 check
+        run: docker run --rm -v "${{ github.workspace }}:/app" ghcr.io/sayanarijit/settingspec:main check
