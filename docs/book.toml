@@ -1,0 +1,22 @@
+[book]
+title = "SettingSpec"
+description = "One file for all environments, all languages, all submodules."
+authors = ["Arijit Basu"]
+language = "en"
+
+[output.html]
+git-repository-url = 'https://github.com/sayanarijit/settingspec'
+edit-url-template = 'https://github.com/sayanarijit/settingspec/edit/main/docs/{path}'
+default-theme = 'dark'
+preferred-dark-theme = 'coal'
+theme = "theme"
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+# [output.linkcheck]
+# optional = true
+
+# [preprocessor.frontmatter-strip] # Not supported by cf pages
+# renderers = ["html"]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"

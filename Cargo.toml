@@ -1,0 +1,38 @@
+[package]
+name = "settingspec"
+version = "0.1.0"
+edition = "2024"
+description = "One file for all environments, all languages, all submodules."
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/sayanarijit/settingspec"
+authors = ["Arijit Basu <settingspec@arijitbasu.in>"]
+keywords = ["configuration", "settings", "secrets", "cli", "command-line"]
+categories = ["command-line-utilities", "development-tools"]
+include = ["src/**/*", "LICENSE-MIT", "LICENSE-APACHE", "README.md"]
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+archive-suffix = "tar.gz"
+pkg-fmt = "tgz"
+
+[features]
+default = ["autocomplete"]
+autocomplete = ["dep:clap_complete"]
+
+[dependencies]
+clap = { version = "4.6", features = ["derive", "env", "color"] }
+clap_complete = { version = "4.6.5", optional = true }
+anyhow = "1.0"
+dotenvy = "0.15.7"
+toml = "1.1.2"
+
+[dev-dependencies]
+assert_fs = "1.1.4"
+
+[profile.release]
+strip = true
+codegen-units = 1
+lto = true
+panic = 'abort'

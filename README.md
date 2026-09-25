@@ -1,0 +1,139 @@
+# SettingSpec
+
+Write one single file to declare your settings along with their spec. Load it anywhere.
+
+## Concepts
+
+### Single file convenience
+
+With a single source of truth, i.e., `settingspec.toml`, you don't need to mentally merge settings from multiple files, say `common.toml`, `dev.toml`, `prod.toml`, etc. No surprise overwrites. One file for all environments, all languages, all submodules.
+
+### Declarative profiles / environments
+
+```toml
+[spec]                               # Optional: Declare the specification here
+profile.key = "SETTINGSPEC_PROFILE"  # Default: Environment variable name to switch between profiles
+profile.options = [                  # Optional: Enables strict checking of per-profile declarations
+  "dev",
+  "stage",
+  "prod",
+]
+profile.default = "dev"  # Optional: Default profile when the switch is not set
+
+[settings]                 # Declare the settings here with syntax: `<key>.<profile>.<directive> = <value>`
+key1.default.val = "val1"  # Default value for all profiles
+key1.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
+
+# Strictly define different values for different profiles
+key2.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
+key2.stage.val = "stage2"
+key2.prod.val = "prod2"
+```
+
+Overrides are intentional and kept in plain sight (see `key1`).
+
+By not defining a default value, you can ensure that you never miss adding a value for a specific profile (e.g. this file will refuse to load if `key2.prod` declaration is missing).
+
+### Language independent
+
+The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, etc., or hard-coded modules such as `.py`, `.js`, `.lua`, etc., write them to disk, or pipe them via stdin, allowing you to use a single `settingspec.toml` without worrying about the target language.
+
+```toml
+[spec]
+export.file = {                # Optional: Export as files
+  "settings.toml" = true,      # Default: Export all settings into settings.toml
+  "settings.yaml" = {         # Fine-grained control over what to export into settings.yaml
+    key1 = true,              # Export key1
+    group1 = true,            # Export all settings from group1
+    group2.subgroup = true,   # Export all settings from group2.subgroup
+    group3.subgroup = false,  # Export all settings from group3 except those from group3.subgroup
+    "#tag1" = true,           # Export all settings tagged tag1
+  },
+}
+export.mode = 0x600     # Default: File permission mode for the exported files
+export.keep = false     # Default: Cleanup the exported files after the program exits
+export.stdout = "toml"  # Optional: Print in toml format
+
+[settings]
+key1.default.val = "val1"
+group1.key1.default.val = "group1val2"
+group2.subroup.key1.default.val = "group2val1"
+group3.subroup.key1.default.val = "group3val3"
+```
+
+Now export the final settings as declared.
+
+```bash
+settingspec export
+```
+
+Or directly run the program with exported settings.
+
+```bash
+settingspec run -- [your program]...
+```
+
+You can avoid writing the final generated settings to disk by piping them via stdin.
+
+If no export option is specified, the default behavior is to export all settings into `settings.toml`.
+
+> [!NOTE]
+> If the target programming language supports null values, you can declare it as `key.default.null = true` in the settings section.
+
+### Easy secrets
+
+Unlike regular settings, secrets aren't supposed to be easily visible. So, they are best declared inside hidden/encrypted files and passed via environment variables or via stdin.
+
+However, with SettingSpec, we can ensure that they are actually set and also include them in the final exported settings.
+
+#### SecretSpec
+
+You can pair up SettingSpec with a declarative secrets manager such as [SecretSpec](https://secretspec.dev).
+
+secretspec.toml
+
+```toml
+[project]
+name = "my-app"
+revision = "1.0"
+
+[profiles.default]
+SECRET1 = { description = "Secret One", required = true }
+SECRET2 = { description = "Secret Two", required = false }
+```
+
+settingspec.toml
+
+```toml
+[spec]
+profile.options = ["dev", "stage", "prod"]
+
+[settings]
+secret1.default.env = "SECRET1"  # Load value from $SECRET1
+
+# Override the default value from environment variables
+secret2.default.val = "defaultvalue"  # Default value if $SECRET2 is not set
+secret2.default.env = "SECRET2"       # Load value from $SECRET2 if set
+secret2.prod.env = "PRODSECRET"       # Load value from $PRODSECRET if SETTINGSPEC_PROFILE=prod
+```
+
+With these set up, run:
+
+```bash
+secretspec run -- settingspec run -- [your program]...
+```
+
+#### Dotenv
+
+Or keep things simple with [Dotenv](https://www.dotenv.org).
+
+```toml
+[spec]
+profile.options = ["dev", "stage", "prod"]
+
+envfile.default = ".env"  # Load environment variables from this file for all profiles
+envfile.prod = "-"        # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
+
+[settings]
+secret1.default.env = "SECRET1"     # Load value from $SECRET1
+```
