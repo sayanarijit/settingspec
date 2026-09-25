@@ -373,7 +373,7 @@ Or using standard TOML table syntax:
 key1 = true
 group1 = true
 group2.subgroup = true
-group3.subgroup = false
+group3.subgroup.key1 = false
 "#tag1" = true
 ```
 

@@ -1,6 +1,25 @@
-# SettingSpec
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://s15.gifyu.com/images/buXVO.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://s15.gifyu.com/images/buXZJ.png">
+    <img alt="The settingspec cover" width="600" src="https://s15.gifyu.com/images/buXZJ.png">
+  </picture>
+</p>
 
-Write one single file to declare your settings along with their spec. Load it anywhere.
+[![SettingSpec Check](https://github.com/sayanarijit/settingspec/actions/workflows/settingspec-check.yml/badge.svg)](https://github.com/sayanarijit/settingspec/actions/workflows/settingspec-check.yml)
+[![Crates.io Version](https://img.shields.io/crates/v/settingspec)](https://crates.io/crates/settingspec)
+[![PyPI Version](https://img.shields.io/pypi/v/settingspec)](https://pypi.org/project/settingspec)
+[![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fsettingspec)](https://www.npmjs.com/package/@sayanarijit/settingspec)
+[![Docker Image Version](https://img.shields.io/docker/v/sayanarijit/settingspec?label=docker)](https://hub.docker.com/r/sayanarijit/settingspec)
+
+1. [Concepts](#concepts)
+   1. [Single file convenience](#single-file-convenience)
+   2. [Declarative profiles / environments](#declarative-profiles-/-environments)
+   3. [Language independent](#language-independent)
+   4. [Easy secrets](#easy-secrets)
+      1. [SecretSpec](#secretspec)
+      2. [Dotenv](#dotenv)
+2. [Learn more](#learn-more)
 
 ## Concepts
 
@@ -47,7 +66,7 @@ export.file = true             # Default: Export all settings into settings.toml
 #     key1 = true,
 #     group1 = true,
 #     group2.subgroup = true,
-#     group3.subgroup = false,
+#     group3.subgroup.key1 = false,
 #     "#tag1" = true,
 #   },
 # }
@@ -60,9 +79,10 @@ export.stdin = "toml"   # Optional: Pass settings to program stdin in specified 
 
 [settings]
 key1.default.val = "val1"
-group1.key1.default.val = "group1val2"
-group2.subroup.key1.default.val = "group2val1"
-group3.subroup.key1.default.val = "group3val3"
+group1.key1.default.val = "group1val1"
+group2.subgroup.key1.default.val = "group2val1"
+group3.subgroup.key1.default.val = "group3val1"
+group3.subgroup.key1.default.tags = ["tag1", "tag2"]
 ```
 
 Now export the final settings as declared.
@@ -139,3 +159,7 @@ envfile.prod = "-"        # Load environment variables from stdin when SETTINGSP
 [settings]
 secret1.default.env = "SECRET1"     # Load value from $SECRET1
 ```
+
+## Learn more
+
+Check out the [settingspec.toml](./settingspec.toml) example file and [full specification](./SPECIFICATION.md) for more details.

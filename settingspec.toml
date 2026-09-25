@@ -1,0 +1,56 @@
+[spec] # Optional: Declare the specification here
+profile.key = "SETTINGSPEC_PROFILE" # Default: Environment variable name to switch between profiles
+profile.options = [ # Optional: Enables strict checking of per-profile declarations
+  "dev",
+  "stage",
+  "prod",
+]
+profile.default = "dev" # Optional: Default profile when the switch is not set
+
+envfile.default = ".env"  # Load environment variables from this file for all profiles
+envfile.prod = "-"        # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
+
+# export.file = true # Default: Export all settings into settings.toml (or specify fine-grained file map)
+export.file = {              # Optional: Fine-grained control over what to export
+  "settings.toml" = true,
+  "settings.yaml" = {
+    key1 = true,
+    group1 = true,
+    group2.subgroup = true,
+    group3.subgroup.key1 = false,
+  },
+  "settings.json" = {
+    "#tag1" = true, # Export all settings with tag1
+    group2 = false, # Exclude this setting from export
+  },
+}
+export.skip_gitignore = false # Default: Auto-append exported files to .gitignore if inside a git repo
+export.mode = 0x600           # Default: File permission mode for the exported files
+export.keep = false           # Default: Cleanup the exported files after the program exits
+export.stdout = "toml"        # Optional: Print in toml format
+export.env = "PREFIX_"        # Optional: Export as environment variables prefixed with this string
+export.stdin = "toml"         # Optional: Pass settings to program stdin in specified format
+
+[settings] # Declare the settings here with syntax: `<key>.<profile>.<directive> = <value>`
+key1.default.val = "val1"  # Default value for all profiles
+key1.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
+
+# Strictly define different values for different profiles
+key2.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
+key2.stage.val = "stage2"
+key2.prod.env = "KEY2"     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
+
+group1.key1.default.val = "group1val1"
+group1.key1.default.tags = ["tag1", "tag2"] # Optional: Tags for the setting
+
+[settings.group2.subgroup] # Nested group settings
+key1.default.val = "group2val1"
+key2.default.val = "group2val2"
+key3.default.val = "group2val3"
+key3.default.tags = ["tag1"]
+
+[settings.group3.subgroup] # Nested group settings
+key1.default.val = "group3val1"
+key2.default.val = "group3val2"
+key3.default.val = "group3val3"
+key3.default.tags = ["tag2"]

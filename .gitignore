@@ -71,5 +71,7 @@ docs/_build/
 # Pyenv
 .python-version
 
-/settingspec.toml
 /settings.toml
+/settings.json
+/settings.yaml
+/settings.lua
