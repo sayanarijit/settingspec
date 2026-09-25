@@ -36,23 +36,27 @@ By not defining a default value, you can ensure that you never miss adding a val
 
 ### Language independent
 
-The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, etc., or hard-coded modules such as `.py`, `.js`, `.lua`, etc., write them to disk, or pipe them via stdin, allowing you to use a single `settingspec.toml` without worrying about the target language.
+The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, etc., or hard-coded modules such as `.py`, `.js`, `.lua`, etc., write them to disk, print, or pipe them via stdin or even export as environment variables, allowing you to use a single `settingspec.toml` without worrying about the target language.
 
 ```toml
 [spec]
-export.file = {                # Optional: Export as files
-  "settings.toml" = true,      # Default: Export all settings into settings.toml
-  "settings.yaml" = {         # Fine-grained control over what to export into settings.yaml
-    key1 = true,              # Export key1
-    group1 = true,            # Export all settings from group1
-    group2.subgroup = true,   # Export all settings from group2.subgroup
-    group3.subgroup = false,  # Export all settings from group3 except those from group3.subgroup
-    "#tag1" = true,           # Export all settings tagged tag1
-  },
-}
+export.file = true             # Default: Export all settings into settings.toml (or specify fine-grained file map)
+# export.file = {              # Optional: Fine-grained control over what to export
+#   "settings.json" = true,
+#   "settings.yaml" = {
+#     key1 = true,
+#     group1 = true,
+#     group2.subgroup = true,
+#     group3.subgroup = false,
+#     "#tag1" = true,
+#   },
+# }
+export.skip_gitignore = false  # Default: Auto-append exported files to .gitignore if inside a git repo
 export.mode = 0x600     # Default: File permission mode for the exported files
 export.keep = false     # Default: Cleanup the exported files after the program exits
 export.stdout = "toml"  # Optional: Print in toml format
+export.env = "PREFIX_"  # Optional: Export as environment variables prefixed with this string
+export.stdin = "toml"   # Optional: Pass settings to program stdin in specified format
 
 [settings]
 key1.default.val = "val1"
@@ -72,8 +76,6 @@ Or directly run the program with exported settings.
 ```bash
 settingspec run -- [your program]...
 ```
-
-You can avoid writing the final generated settings to disk by piping them via stdin.
 
 If no export option is specified, the default behavior is to export all settings into `settings.toml`.
 

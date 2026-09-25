@@ -120,7 +120,7 @@ envfile.prod = "-"
 
 ### 3.3 Export Configuration (`spec.export`)
 
-The `export` sub-table specifies how resolved settings are output to files or stdout.
+The `export` sub-table specifies how resolved settings are output to files, stdout, stdin, or environment variables.
 
 #### 3.3.1 File Mode (`export.mode`)
 
@@ -138,9 +138,12 @@ The `export` sub-table specifies how resolved settings are output to files or st
 
 #### 3.3.3 Standard Output (`export.stdout`)
 
-- **Type:** String (`"toml"`, `"json"`, `"yaml"`, `"env"` etc. supported formats).
+- **Type:** Boolean or String (`"toml"`, `"json"`, `"yaml"`, `"env"` etc. supported formats).
 - **Default:** None.
 - **Description:** Emits the resolved settings directly to standard output in the specified serialization format.
+  - Setting `export.stdout = true` or `export.stdout = ""` emits resolved settings formatted as TOML (default format).
+  - Setting `export.stdout = "<format>"` (e.g., `"json"`, `"yaml"`, `"toml"`, `"env"`) emits resolved settings formatted in the specified serialization format.
+  - Setting `export.stdout = false` (or omitting `export.stdout`) disables stdout export.
 
 #### 3.3.4 Target Files (`export.file`)
 
@@ -152,11 +155,40 @@ The `export.file` table maps target file paths to export filter expressions:
 "settings.yaml" = { key1 = true, group1 = true, group2.subgroup = true, group3.subgroup = false, "#tag1" = true }
 ```
 
-- If both `export.stdout` and `export.file` are omitted from `[spec]`, the default behavior MUST be:
+- Setting `export.file = true` defaults to exporting all settings to `settings.toml`.
+- Setting `export.file = false` disables exporting to files.
+- If no export configuration is declared in `[spec]`, the default behavior MUST be:
   ```toml
   [spec.export.file]
   "settings.toml" = true
   ```
+- Environment variable files (`.env`, `.env.*`, `env.*`, `*.env`) are exported in `env` format.
+- If a target file's format is unrecognizable (e.g., `"aaa"`, `"output.xyz"`), SettingSpec MUST fail with an unsupported export format error.
+
+#### 3.3.5 Environment Variables (`export.env`)
+
+- **Type:** Boolean or String.
+- **Default:** None (disabled).
+- **Description:** Exports resolved settings directly as environment variables into the child process when executing `settingspec run`.
+  - Setting `export.env = true` or `export.env = ""` exports resolved settings using their uppercase, underscore-delimited key names (e.g., `database.host` -> `DATABASE_HOST`).
+  - Setting `export.env = "PREFIX_"` exports resolved settings with the specified prefix prepended to the key names (e.g., `database.host` -> `PREFIX_DATABASE_HOST`).
+  - Setting `export.env = false` (or omitting `export.env`) disables exporting settings as environment variables.
+  - Setting keys with `null` values are omitted from exported environment variables.
+
+#### 3.3.6 Standard Input (`export.stdin`)
+
+- **Type:** Boolean or String (`"toml"`, `"json"`, `"yaml"`, `"env"` etc. supported formats).
+- **Default:** None (disabled).
+- **Description:** Passes resolved settings directly to standard input (stdin) of the child process when executing `settingspec run`.
+  - Setting `export.stdin = true` or `export.stdin = ""` passes resolved settings formatted as TOML.
+  - Setting `export.stdin = "<format>"` (e.g., `"json"`, `"yaml"`, `"toml"`, `"env"`) passes resolved settings formatted in the specified serialization format.
+  - Setting `export.stdin = false` (or omitting `export.stdin`) disables passing settings via stdin.
+
+#### 3.3.7 Git Integration (`export.skip_gitignore`)
+
+- **Type:** Boolean.
+- **Default:** `false`.
+- **Description:** When executing inside a git repository, SettingSpec automatically appends all exported file targets to `.gitignore` (adjacent to the git root) before each `run` or `export` execution if not already present. Setting `spec.export.skip_gitignore = true` disables this automatic behavior.
 
 ---
 
@@ -419,15 +451,16 @@ SettingSpec MUST evaluate table filters using the following precedence and scopi
 
 Export formats are inferred from the destination file extension:
 
-| Extension       | Format            | Description                                                                               |
-| --------------- | ----------------- | ----------------------------------------------------------------------------------------- |
-| `.toml`         | TOML 1.0          | Standard TOML format. Keys with `null` values are omitted.                                |
-| `.json`         | JSON              | Standard JSON. Keys with `null` values are serialized as `null`.                          |
-| `.yaml`, `.yml` | YAML              | Standard YAML. Keys with `null` values are serialized as `null` or `~`.                   |
-| `.py`           | Python Module     | Python source file defining nested classes or top-level variables. `null` maps to `None`. |
-| `.js`, `.mjs`   | JavaScript Module | ECMAScript module (`export default { ... }`). `null` maps to `null`.                      |
-| `.ts`           | TypeScript Module | TypeScript module with typed interfaces and `export default { ... }`.                     |
-| `.lua`          | Lua Table         | Lua module returning a table (`return { ... }`). `null` maps to `nil`.                    |
+| Extension                          | Format            | Description                                                                               |
+| ---------------------------------- | ----------------- | ----------------------------------------------------------------------------------------- |
+| `.toml`                            | TOML 1.0          | Standard TOML format. Keys with `null` values are omitted.                                |
+| `.json`                            | JSON              | Standard JSON. Keys with `null` values are serialized as `null`.                          |
+| `.yaml`, `.yml`                    | YAML              | Standard YAML. Keys with `null` values are serialized as `null` or `~`.                   |
+| `.py`                              | Python Module     | Python source file defining nested classes or top-level variables. `null` maps to `None`. |
+| `.js`, `.mjs`                      | JavaScript Module | ECMAScript module (`export default { ... }`). `null` maps to `null`.                      |
+| `.ts`                              | TypeScript Module | TypeScript module with typed interfaces and `export default { ... }`.                     |
+| `.lua`                             | Lua Table         | Lua module returning a table (`return { ... }`). `null` maps to `nil`.                    |
+| `.env`, `.env.*`, `env.*`, `*.env` | Shell Environment | Key-value pairs (`KEY=VALUE`). Keys with `null` values are omitted.                       |
 
 ---
 
@@ -481,7 +514,7 @@ sequenceDiagram
 ```
 
 1. **File Generation:** SettingSpec resolves settings for the active profile and writes all target export files declared in `spec.export.file` using permission mode `spec.export.mode` (default `0x600`).
-2. **Execution:** The child process `<COMMAND> [ARGS...]` is spawned. Signals (e.g., `SIGINT`, `SIGTERM`) MUST be forwarded to the child process.
+2. **Execution:** The child process `<COMMAND> [ARGS...]` is spawned. Sourced environment variables from `spec.envfile` are set, if `spec.export.env` is configured, resolved settings are exported as environment variables into the child process, and if `spec.export.stdin` is configured, resolved settings are passed to the child process via standard input (stdin). Signals (e.g., `SIGINT`, `SIGTERM`) MUST be forwarded to the child process.
 3. **Cleanup:**
    - If `spec.export.keep` is `false` (default): All exported target files are deleted upon completion.
    - If `spec.export.keep` is `true`: Exported target files are retained on disk.
@@ -504,5 +537,5 @@ settingspec check [OPTIONS]
 
 1. **File Permission Enforcement:** All generated export files containing configuration or secrets MUST be created with restricted file permissions (`spec.export.mode`, default `0x600`). On POSIX systems, this prevents reading by other unprivileged users on the same host.
 2. **Ephemeral Secrets:** Applications that utilize `settingspec run` benefit from ephemeral file lifetimes. By default (`spec.export.keep = false`), SettingSpec guarantees cleanup of exported files upon process exit, even in the event of child errors or termination signals.
-3. **Source Control Hygiene:** Configuration authors SHOULD add generated targets (e.g., `settings.toml`, `settings.json` etc.) to `.gitignore` to prevent inadvertent commits of decrypted secrets.
+3. **Source Control Hygiene:** Configuration authors SHOULD add generated targets (e.g., `settings.toml`, `settings.json` etc.) to `.gitignore` to prevent inadvertent commits of decrypted secrets. When inside a git repository, SettingSpec automatically appends exported target files to `.gitignore` (adjacent to the git root) before each `run` or `export` execution if not already present, unless disabled via `spec.export.skip_gitignore = true`.
 4. **Standard Input for Secrets:** When pairing with secret managers (e.g., SecretSpec, 1Password CLI, Vault), users SHOULD pass secrets via environment variables or stdin (`envfile.prod = "-"`) to avoid writing raw secrets to persistent disk.
