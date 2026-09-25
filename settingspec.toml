@@ -8,7 +8,7 @@ profile.options = [ # Optional: Enables strict checking of per-profile declarati
 profile.default = "dev" # Optional: Default profile when the switch is not set
 
 envfile.default = ".env"  # Load environment variables from this file for all profiles
-envfile.prod = "-"        # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
+# envfile.prod = "-"      # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
 
 # export.file = true # Default: Export all settings into settings.toml (or specify fine-grained file map)
 export.file = {              # Optional: Fine-grained control over what to export

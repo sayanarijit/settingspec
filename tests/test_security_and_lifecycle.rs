@@ -40,6 +40,40 @@ secret_key.default.val = "very_secret_value"
 }
 
 #[test]
+fn test_exported_file_permission_mode_0640() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec]
+export.mode = 0x640
+export.file."secret_settings.toml" = true
+
+[settings]
+secret_key.default.val = "very_secret_value"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let exported = temp.child("secret_settings.toml");
+    exported.assert(predicate::path::exists());
+
+    #[cfg(unix)]
+    {
+        let metadata = std::fs::metadata(exported.path()).unwrap();
+        let mode = metadata.permissions().mode() & 0o777;
+        assert_eq!(mode, 0o640, "File permissions should be 0640 (rw-r-----)");
+    }
+}
+
+#[test]
 fn test_ephemeral_secrets_cleaned_up_on_child_failure() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config = temp.child("settingspec.toml");

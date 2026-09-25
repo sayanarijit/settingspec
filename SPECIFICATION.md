@@ -1,7 +1,7 @@
 # SettingSpec Specification
 
 **Version:** 0.1  
-**Status:** Draft  
+**Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** [https://github.com/sayanarijit/settingspec](https://github.com/sayanarijit/settingspec)
 

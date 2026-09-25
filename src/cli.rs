@@ -224,7 +224,7 @@ fn execute_run(ctx: &ExecutionContext, command_args: &[String]) -> Result<()> {
     Ok(())
 }
 
-pub fn write_export_file(path: &Path, content: &str, mode: u32) -> Result<()> {
+pub fn write_export_file(path: &Path, content: &str, _mode: u32) -> Result<()> {
     if let Some(parent) = path.parent()
         && !parent.as_os_str().is_empty()
     {
@@ -236,7 +236,7 @@ pub fn write_export_file(path: &Path, content: &str, mode: u32) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let perms = std::fs::Permissions::from_mode(mode);
+        let perms = std::fs::Permissions::from_mode(_mode);
         let _ = std::fs::set_permissions(path, perms);
     }
 
@@ -296,12 +296,12 @@ fn is_entry_in_gitignore(existing_content: &str, entry: &str) -> bool {
         }
         // In git, a pattern without '/' matches anywhere in the repository:
         // E.g. if .gitignore has "settings.toml", it matches "subdir/settings.toml".
-        if !trimmed.starts_with('/') && !norm_line.contains('/') {
-            if let Some((_, file_name)) = norm_entry.rsplit_once('/') {
-                if file_name == norm_line {
-                    return true;
-                }
-            }
+        if !trimmed.starts_with('/')
+            && !norm_line.contains('/')
+            && let Some((_, file_name)) = norm_entry.rsplit_once('/')
+            && file_name == norm_line
+        {
+            return true;
         }
     }
     false

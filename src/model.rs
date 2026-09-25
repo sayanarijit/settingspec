@@ -155,14 +155,16 @@ where
     D: Deserializer<'de>,
 {
     let val = i64::deserialize(deserializer)?;
-    let mode_u32 = if val == 0x600 || val == 0o600 {
-        0o600
-    } else if (0..=0o777).contains(&val) {
-        val as u32
-    } else {
-        0o600
-    };
-    Ok(mode_u32)
+    if (0..=0o777).contains(&val) {
+        return Ok(val as u32);
+    }
+    let hex = format!("{:x}", val);
+    if let Ok(octal) = u32::from_str_radix(&hex, 8)
+        && (0..=0o7777).contains(&octal)
+    {
+        return Ok(octal);
+    }
+    Ok(0o600)
 }
 
 /// A field that accepts either a boolean toggle or a string value in TOML.
