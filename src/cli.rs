@@ -23,6 +23,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
+    /// Initializes settingspec.toml in current directory
+    Init,
     /// Generates all configured export files and/or writes formatted output to stdout
     Export,
     /// Validates configuration syntax, profile completeness, and environment variables
@@ -34,19 +36,71 @@ pub enum Commands {
     },
 }
 
+pub const INIT_CONFIG: &str = r#"[spec]
+profile.options = ["local", "prod"]
+profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
+
+[settings]
+key.local.val = "local"
+key.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+"#;
+
+pub fn init_config() -> Result<()> {
+    let config_path = Path::new("settingspec.toml");
+    if config_path.exists() {
+        return Ok(());
+    }
+    std::fs::write(config_path, INIT_CONFIG)?;
+    Ok(())
+}
+
 pub struct ExecutionContext {
     pub doc: SettingSpecDocument,
     pub active_profile: Option<String>,
     pub resolved_settings: Vec<ResolvedSetting>,
     pub sourced_env: HashMap<String, String>,
+    pub project_root: PathBuf,
+}
+
+pub fn find_project_root(start_dir: &Path) -> Option<PathBuf> {
+    let mut current = if start_dir.is_relative() {
+        match std::env::current_dir() {
+            Ok(cwd) => cwd.join(start_dir),
+            Err(_) => start_dir.to_path_buf(),
+        }
+    } else {
+        start_dir.to_path_buf()
+    };
+    if let Ok(canon) = current.canonicalize() {
+        current = canon;
+    } else {
+        current = normalize_path(&current);
+    }
+    loop {
+        let config = current.join("settingspec.toml");
+        if config.is_file() {
+            return Some(current);
+        }
+        if !current.pop() {
+            break;
+        }
+    }
+    None
 }
 
 pub fn load_and_resolve() -> Result<ExecutionContext> {
-    let config_path = Path::new("settingspec.toml");
-    if !config_path.exists() {
-        return Err(SettingSpecError::ConfigNotFound);
+    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let project_root = find_project_root(&current_dir).ok_or(SettingSpecError::ConfigNotFound)?;
+
+    if let Ok(current_canon) = current_dir.canonicalize() {
+        if project_root != current_canon {
+            std::env::set_current_dir(&project_root)?;
+        }
+    } else if project_root != current_dir {
+        std::env::set_current_dir(&project_root)?;
     }
 
+    let config_path = Path::new("settingspec.toml");
     let content = std::fs::read_to_string(config_path)?;
     let doc = parse_config_str(&content)?;
 
@@ -64,6 +118,7 @@ pub fn load_and_resolve() -> Result<ExecutionContext> {
         active_profile,
         resolved_settings,
         sourced_env,
+        project_root,
     })
 }
 
@@ -71,6 +126,7 @@ pub fn run_cli() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Init => init_config(),
         Commands::Check => {
             // Check only validates config syntax, profiles, env vars without creating files
             load_and_resolve()?;
@@ -312,8 +368,8 @@ pub fn auto_append_gitignore(ctx: &ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let git_root = match find_git_root(&current_dir) {
+    let current_dir = &ctx.project_root;
+    let git_root = match find_git_root(current_dir) {
         Some(root) => root,
         None => return Ok(()),
     };

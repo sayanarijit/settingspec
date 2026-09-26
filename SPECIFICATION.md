@@ -41,7 +41,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 ### 2.1 File Location and Syntax
 
 1. A SettingSpec configuration MUST be a valid [TOML v1.0.0](https://toml.io/en/v1.0.0) document.
-2. The configuration file name is `settingspec.toml`, located in the root of the project directory. There is no way to overwrite it.
+2. The configuration file name is `settingspec.toml`, located in the root of the project directory. If `settingspec.toml` is not found in the current directory, SettingSpec traverses parent directories upwards until it finds one; that directory is the project root.
 3. A SettingSpec document consists of two top-level tables:
    - `[spec]`: Metadata, profile declarations, environment file sources, and export definitions (OPTIONAL).
    - `[settings]`: Setting definitions and per-profile value declarations (REQUIRED).
@@ -530,6 +530,17 @@ settingspec check [OPTIONS]
 
 - Returns exit code `0` on validation success.
 - Returns non-zero exit code with diagnostic errors if syntax is invalid, profiles are incomplete, or required environment variables are missing.
+
+### 7.5 Subcommand: `init`
+
+Initializes a starter `settingspec.toml` in the current directory if one does not already exist.
+
+```bash
+settingspec init [OPTIONS]
+```
+
+- If `settingspec.toml` already exists in the current directory, execution skips without overwriting or error.
+- Initializes with default profile options (`local`, `prod`), default profile (`local`), and sample settings.
 
 ---
 

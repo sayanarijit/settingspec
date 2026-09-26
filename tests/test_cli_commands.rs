@@ -10,6 +10,7 @@ fn test_cli_help_and_version() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Usage:"))
+        .stdout(predicate::str::contains("init"))
         .stdout(predicate::str::contains("export"))
         .stdout(predicate::str::contains("check"))
         .stdout(predicate::str::contains("run"));
@@ -827,4 +828,152 @@ key1.default.val = "val1"
     cmd.current_dir(temp.path()).arg("check").assert().success();
 
     temp.child(".gitignore").assert(predicate::path::missing());
+}
+
+#[test]
+fn test_cli_init_creates_default_config() {
+    let temp = assert_fs::TempDir::new().unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path()).arg("init").assert().success();
+
+    let config = temp.child("settingspec.toml");
+    config.assert(predicate::path::exists());
+
+    let content = std::fs::read_to_string(config.path()).unwrap();
+    let expected = r#"[spec]
+profile.options = ["local", "prod"]
+profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
+
+[settings]
+key.local.val = "local"
+key.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+"#;
+    assert_eq!(content, expected);
+
+    // Verify check passes out of the box with the initialized config
+    let mut check_cmd = Command::cargo_bin("settingspec").unwrap();
+    check_cmd
+        .current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .success();
+
+    // Verify export works out of the box
+    let mut export_cmd = Command::cargo_bin("settingspec").unwrap();
+    export_cmd
+        .current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+    temp.child("settings.toml")
+        .assert(predicate::path::exists());
+    let exported = std::fs::read_to_string(temp.child("settings.toml").path()).unwrap();
+    assert!(exported.contains("key = \"local\""));
+}
+
+#[test]
+fn test_cli_init_skips_if_already_exists() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str("# existing content\n[settings]\nk.default.val = 1\n")
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path()).arg("init").assert().success();
+
+    let content = std::fs::read_to_string(config.path()).unwrap();
+    assert_eq!(
+        content,
+        "# existing content\n[settings]\nk.default.val = 1\n"
+    );
+}
+
+#[test]
+fn test_cli_traverses_up_to_project_root() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec]
+profile.options = ["local", "prod"]
+profile.default = "local"
+
+[spec.export.file]
+"settings.toml" = true
+
+[settings]
+key.local.val = "from_root"
+key.prod.val = "from_root_prod"
+"#,
+        )
+        .unwrap();
+
+    let sub = temp.child("sub").child("nested");
+    sub.create_dir_all().unwrap();
+
+    // Running check from deep subdirectory should traverse up and find settingspec.toml
+    let mut check_cmd = Command::cargo_bin("settingspec").unwrap();
+    check_cmd
+        .current_dir(sub.path())
+        .arg("check")
+        .assert()
+        .success();
+
+    // Running export from deep subdirectory should export to project root
+    let mut export_cmd = Command::cargo_bin("settingspec").unwrap();
+    export_cmd
+        .current_dir(sub.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    // The exported file should be in the project root, NOT in the subdirectory
+    temp.child("settings.toml")
+        .assert(predicate::path::exists());
+    sub.child("settings.toml")
+        .assert(predicate::path::missing());
+
+    let content = std::fs::read_to_string(temp.child("settings.toml").path()).unwrap();
+    assert!(content.contains("key = \"from_root\""));
+}
+
+#[test]
+fn test_cli_prefers_current_dir_settingspec_over_parent() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let parent_config = temp.child("settingspec.toml");
+    parent_config
+        .write_str(
+            r#"
+[settings]
+key.default.val = "from_parent"
+"#,
+        )
+        .unwrap();
+
+    let sub = temp.child("sub");
+    sub.create_dir_all().unwrap();
+    let child_config = sub.child("settingspec.toml");
+    child_config
+        .write_str(
+            r#"
+[settings]
+key.default.val = "from_child"
+"#,
+        )
+        .unwrap();
+
+    let mut export_cmd = Command::cargo_bin("settingspec").unwrap();
+    export_cmd
+        .current_dir(sub.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    // Exported file should be in sub
+    sub.child("settings.toml").assert(predicate::path::exists());
+    let content = std::fs::read_to_string(sub.child("settings.toml").path()).unwrap();
+    assert!(content.contains("key = \"from_child\""));
 }
