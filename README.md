@@ -11,7 +11,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/settingspec)](https://pypi.org/project/settingspec)
 [![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fsettingspec)](https://www.npmjs.com/package/@sayanarijit/settingspec)
 
-# Table of contents
+# SettingSpec
 
 1.  [Concepts](#concepts)
     1. [Single file convenience](#single-file-convenience)
