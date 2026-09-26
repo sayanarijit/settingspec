@@ -13,6 +13,11 @@ envfile.default = ".env"  # Load environment variables from this file for all pr
 # export.file = true # Default: Export all settings into settings.toml (or specify fine-grained file map)
 export.file = {              # Optional: Fine-grained control over what to export
   "settings.toml" = true,
+  "settings.py" = true,
+  "settings.lua" = true,
+  "settings.js" = true,
+  "settings.ts" = true,
+  "settings.env" = true,
   "settings.yaml" = {
     key1 = true,
     group1 = true,
@@ -43,14 +48,20 @@ key2.prod.env = "KEY2"     # When SETTINGSPEC_PROFILE=prod, key2 is read from th
 group1.key1.default.val = "group1val1"
 group1.key1.default.tags = ["tag1", "tag2"] # Optional: Tags for the setting
 
-[settings.group2.subgroup] # Nested group settings
+[settings.group2.subgroup]
 key1.default.val = "group2val1"
 key2.default.val = "group2val2"
 key3.default.val = "group2val3"
 key3.default.tags = ["tag1"]
 
-[settings.group3.subgroup] # Nested group settings
+[settings.group3.subgroup]
 key1.default.val = "group3val1"
 key2.default.val = "group3val2"
 key3.default.val = "group3val3"
 key3.default.tags = ["tag2"]
+
+[settings.group4]  # These work as we expect
+key1.default.val = { val = 1 }
+key2.default.val = { default = { val = 1 } }
+key3.default.val = { default = { null = true } }
+key4.default.val = { default = { val = { null = true } } }

@@ -267,3 +267,55 @@ tier.prod.env = "TIER_PROD_ENV"
     temp.child("settings.toml")
         .assert(predicate::str::contains("tier = \"tier_prod_val\""));
 }
+
+#[test]
+fn test_reserved_directive_keywords_and_default_as_table_values() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.toml" = true
+"settings.json" = true
+
+[settings]
+key1.default.val = { val = 1 }
+key2.default.val = { null = true }
+key3.default.val = { tags = [1, 2, 3] }
+key4.default.val = { env = "MY_VAR" }
+key5.default.val = { default = { val = 1 } }
+"#,
+        )
+        .unwrap();
+
+    let mut cmd_check = Command::cargo_bin("settingspec").unwrap();
+    cmd_check
+        .current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .success();
+
+    let mut cmd_export = Command::cargo_bin("settingspec").unwrap();
+    cmd_export
+        .current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let toml_out = temp.child("settings.toml");
+    toml_out.assert(predicate::str::contains("[key1]\nval = 1"));
+    toml_out.assert(predicate::str::contains("[key2]\nnull = true"));
+    toml_out.assert(predicate::str::contains("[key3]"));
+    toml_out.assert(predicate::str::contains("tags = ["));
+    toml_out.assert(predicate::str::contains("[key4]\nenv = \"MY_VAR\""));
+    toml_out.assert(predicate::str::contains("[key5.default]\nval = 1"));
+
+    let json_content = std::fs::read_to_string(temp.child("settings.json").path()).unwrap();
+    let json_val: serde_json::Value = serde_json::from_str(&json_content).unwrap();
+    assert_eq!(json_val["key1"]["val"], 1);
+    assert_eq!(json_val["key2"]["null"], true);
+    assert_eq!(json_val["key3"]["tags"], serde_json::json!([1, 2, 3]));
+    assert_eq!(json_val["key4"]["env"], "MY_VAR");
+    assert_eq!(json_val["key5"]["default"]["val"], 1);
+}

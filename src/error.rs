@@ -6,6 +6,7 @@ pub enum SettingSpecError {
     InvalidToml(String),
     MissingSettingsSection,
     ReservedProfileInOptions,
+    ReservedKeywordConflict(String),
     UnknownProfileInSettings(String),
     ActiveProfileNotInOptions(String),
     NoProfileSelected,
@@ -38,6 +39,11 @@ impl fmt::Display for SettingSpecError {
             Self::ReservedProfileInOptions => write!(
                 f,
                 "Reserved profile identifier 'default' MUST NOT be in spec.profile.options"
+            ),
+            Self::ReservedKeywordConflict(seg) => write!(
+                f,
+                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
+                seg
             ),
             Self::UnknownProfileInSettings(p) => write!(
                 f,

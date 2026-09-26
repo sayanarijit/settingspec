@@ -3,6 +3,10 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 use toml::Value as TomlValue;
 
+pub fn is_reserved_directive_keyword(name: &str) -> bool {
+    matches!(name, "val" | "env" | "null" | "tags")
+}
+
 fn default_profile_key() -> String {
     "SETTINGSPEC_PROFILE".to_string()
 }

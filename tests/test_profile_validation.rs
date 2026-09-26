@@ -109,6 +109,37 @@ key1.default.val = "val1"
 }
 
 #[test]
+fn test_reserved_directive_keyword_in_profile_options_fails() {
+    for kw in ["val", "env", "null", "tags"] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        let config = temp.child("settingspec.toml");
+        config
+            .write_str(&format!(
+                r#"
+[spec]
+profile.options = ["dev", "{}", "prod"]
+profile.default = "dev"
+
+[settings]
+key1.default.val = "val1"
+"#,
+                kw
+            ))
+            .unwrap();
+
+        let mut cmd = Command::cargo_bin("settingspec").unwrap();
+        cmd.current_dir(temp.path())
+            .arg("check")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains(format!(
+                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
+                kw
+            )));
+    }
+}
+
+#[test]
 fn test_strict_coverage_failure_when_profile_unmapped_and_no_default() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config = temp.child("settingspec.toml");

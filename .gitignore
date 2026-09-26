@@ -75,3 +75,7 @@ docs/_build/
 /settings.json
 /settings.yaml
 /settings.lua
+/settings.js
+/settings.py
+/settings.ts
+/settings.env

@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.1  
+**Version:** 0.3  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** [https://github.com/sayanarijit/settingspec](https://github.com/sayanarijit/settingspec)
@@ -97,6 +97,7 @@ The `profile` sub-table configures active profile selection and validation rules
   2. Any profile name used within the `[settings]` table MUST either be an element of `profile.options` or the reserved identifier `default`. Any unknown profile name MUST cause configuration loading to fail.
   3. The reserved name `default` MUST NOT be included as an element in `profile.options`.
   4. **Strict Coverage Rule:** For every setting declared in `[settings]`, if a `default` declaration is absent, a declaration MUST exist for **every** profile listed in `profile.options`. If any profile is unmapped, loading MUST fail.
+  5. **Reserved Word Conflict:** No element of `profile.options` MUST be one of the reserved directive keywords `val`, `env`, `null`, or `tags` (see Section 4.1.1). A profile name colliding with a directive keyword MUST cause configuration loading to fail.
 
 ### 3.2 Environment Files (`spec.envfile`)
 
@@ -217,6 +218,17 @@ Because TOML treats dot-delimited keys as table hierarchies, the declaration par
 2. The **penultimate segment** as the profile identifier (`default` or profile name).
 3. All **preceding segments** as the hierarchical setting key path.
 
+#### 4.1.1 Reserved Directive Keywords
+
+The identifiers `val`, `env`, `null`, and `tags` are **reserved directive keywords**. They MUST NOT be used as:
+
+1. A **setting key segment** (any segment in the `{key}` path, at any depth — top-level or nested), including as a standalone key name or as an intermediate group/namespace name (e.g., `env.default.val = "x"`, `group1.tags.prod.val = "y"`, and `val.default.env = "Z"` are all INVALID).
+2. A **profile name**, whether or not `spec.profile.options` is declared (e.g., a profile literally named `env`, `val`, `null`, or `tags` is INVALID; see also Section 3.1.1, Rule 5).
+
+**Rationale:** The declaration grammar (Section 4.1) disambiguates a dotted path purely by _position_ — the terminal segment is always parsed as the directive, and the penultimate segment is always parsed as the profile. If a key segment or profile name reuses one of the four reserved words, the resulting path becomes structurally ambiguous or silently misparsed (e.g., it may be unclear whether `env` in a given position denotes the reserved `env` directive/profile or a user-defined namespace/profile called "env"). Reserving these four identifiers eliminates this ambiguity entirely, independent of position.
+
+**Validation:** SettingSpec implementations MUST reject, at configuration load time, any setting declaration whose key path or profile segment matches a reserved directive keyword. This validation MUST occur alongside the Static Validation Rules in Section 5.3 (Directive Validity), and MUST cause configuration loading to fail with a clear diagnostic identifying the offending segment.
+
 ### 4.2 Setting Directives
 
 #### 4.2.1 `val`
@@ -329,6 +341,8 @@ flowchart TD
     StrictCheck -- No --> KeyOmitted["Key omitted"]
 ```
 
+> **Note:** This flowchart assumes the key path `K`, profile `P`, and directive have already been unambiguously decomposed from the raw TOML declaration per Section 4.1's positional parsing rule, and that no segment of `K` or `P` collides with a reserved directive keyword (Section 4.1.1). Declarations violating that constraint MUST be rejected during static validation (Section 5.3) before resolution begins.
+
 ### 5.3 Static Validation Rules
 
 During initialization, SettingSpec MUST validate the configuration document prior to performing any export or execution:
@@ -338,6 +352,7 @@ During initialization, SettingSpec MUST validate the configuration document prio
    - A `default` declaration exists for `K`.
    - An explicit declaration exists for `K` across **all** profiles listed in `spec.profile.options`.
 3. **Directive Validity:** A declaration MUST contain `env` or at least one of `val` or `null = true`, along with optional `tags`. Unknown directives MUST be rejected with an error.
+4. **Reserved Keyword Conflict:** No setting key segment and no profile name MUST match a reserved directive keyword (`val`, `env`, `null`, `tags`), per Section 4.1.1. Any such collision MUST be rejected with an error identifying the offending segment.
 
 ---
 

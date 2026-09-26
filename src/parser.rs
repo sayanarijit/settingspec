@@ -32,9 +32,26 @@ pub fn parse_config_str(content: &str) -> Result<SettingSpecDocument> {
 
     let spec = schema.spec.unwrap_or_default();
 
-    // Validate spec.profile.options does not contain "default"
-    if spec.profile.options.iter().any(|o| o == "default") {
-        return Err(SettingSpecError::ReservedProfileInOptions);
+    // Validate spec.profile.options
+    for opt in &spec.profile.options {
+        if opt == "default" {
+            return Err(SettingSpecError::ReservedProfileInOptions);
+        }
+        if is_reserved_directive_keyword(opt) {
+            return Err(SettingSpecError::ReservedKeywordConflict(opt.clone()));
+        }
+    }
+
+    if let Some(ref def) = spec.profile.default
+        && is_reserved_directive_keyword(def)
+    {
+        return Err(SettingSpecError::ReservedKeywordConflict(def.clone()));
+    }
+
+    for prof in spec.envfile.profiles.keys() {
+        if is_reserved_directive_keyword(prof) {
+            return Err(SettingSpecError::ReservedKeywordConflict(prof.clone()));
+        }
     }
 
     // Parse [settings] (REQUIRED)
@@ -78,36 +95,80 @@ pub fn parse_config_str(content: &str) -> Result<SettingSpecDocument> {
     Ok(SettingSpecDocument { spec, settings })
 }
 
+fn has_known_directive(table: &toml::map::Map<String, TomlValue>) -> bool {
+    table.contains_key("val")
+        || table.get("env").is_some_and(|v| !v.is_table())
+        || table.get("null").is_some_and(|v| !v.is_table())
+        || table.get("tags").is_some_and(|v| !v.is_table())
+}
+
+fn is_profile_declaration_table(
+    table: &toml::map::Map<String, TomlValue>,
+    current_path: &[String],
+    profile_options: &[String],
+) -> bool {
+    if current_path.len() < 2 {
+        return false;
+    }
+
+    if table.contains_key("default") || table.keys().any(|k| profile_options.contains(k)) {
+        return false;
+    }
+
+    let last_segment = current_path.last().unwrap();
+
+    if last_segment == "default" || profile_options.contains(last_segment) {
+        return has_known_directive(table)
+            || (!table.is_empty() && !table.values().any(|v| v.is_table()));
+    }
+
+    if let Some(val_entry) = table.get("val") {
+        if let Some(sub_table) = val_entry.as_table()
+            && has_known_directive(sub_table)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    if table.get("env").is_some_and(|v| !v.is_table())
+        || table.get("null").is_some_and(|v| !v.is_table())
+        || table.get("tags").is_some_and(|v| !v.is_table())
+    {
+        return true;
+    }
+
+    if !table.is_empty() && !table.values().any(|v| v.is_table()) {
+        return true;
+    }
+
+    false
+}
+
 fn extract_settings(
     table: &toml::map::Map<String, TomlValue>,
     current_path: &mut Vec<String>,
     profile_options: &[String],
     settings: &mut BTreeMap<String, Setting>,
 ) -> Result<()> {
-    let has_directive = table
-        .keys()
-        .any(|k| matches!(k.as_str(), "val" | "env" | "null" | "tags"));
-    let last_is_profile = if let Some(last) = current_path.last() {
-        last == "default" || profile_options.contains(last)
-    } else {
-        false
-    };
+    if is_profile_declaration_table(table, current_path, profile_options) {
+        let profile = current_path.last().unwrap().clone();
+        let key_segments = &current_path[..current_path.len() - 1];
+        let setting_key = key_segments.join(".");
 
-    if has_directive
-        || (last_is_profile && current_path.len() >= 2 && !table.values().any(|v| v.is_table()))
-    {
-        // This is a profile declaration!
-        if current_path.len() < 2 {
-            return Err(SettingSpecError::InvalidToml(
-                "Malformed setting declaration: missing setting key or profile".into(),
-            ));
+        // 1. Validate setting key segments for reserved keywords
+        for seg in key_segments {
+            if is_reserved_directive_keyword(seg) {
+                return Err(SettingSpecError::ReservedKeywordConflict(seg.clone()));
+            }
         }
 
-        let profile = current_path.pop().unwrap();
-        let setting_key = current_path.join(".");
-        current_path.push(profile.clone());
+        // 2. Validate profile name for reserved keywords
+        if is_reserved_directive_keyword(&profile) {
+            return Err(SettingSpecError::ReservedKeywordConflict(profile));
+        }
 
-        // Validate profile name
+        // 3. Validate profile options membership
         if !profile_options.is_empty()
             && profile != "default"
             && !profile_options.contains(&profile)
@@ -115,9 +176,9 @@ fn extract_settings(
             return Err(SettingSpecError::UnknownProfileInSettings(profile));
         }
 
-        // Validate directives: check for unknown directives
+        // 4. Validate directives: check for unknown directives
         for k in table.keys() {
-            if !matches!(k.as_str(), "val" | "env" | "null" | "tags") {
+            if !is_reserved_directive_keyword(k) {
                 return Err(SettingSpecError::InvalidDirective(
                     setting_key,
                     profile,
@@ -126,7 +187,7 @@ fn extract_settings(
             }
         }
 
-        // Deserialize profile declaration schema using Serde
+        // 5. Deserialize profile declaration schema using Serde
         let decl_schema: ProfileDeclarationSchema =
             ProfileDeclarationSchema::deserialize(table.clone().into_deserializer())
                 .map_err(|e| SettingSpecError::InvalidToml(e.to_string()))?;
@@ -183,4 +244,98 @@ fn extract_settings(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_reserved_directive_keywords_and_default_in_table_values() {
+        let toml_str = r#"
+[settings]
+key1.default.val = { val = 1 }
+key2.default.val = { null = true }
+key3.default.val = { tags = [1, 2, 3] }
+key4.default.val = { env = "MY_VAR" }
+key5.default.val = { default = { val = 1 } }
+"#;
+
+        let doc = parse_config_str(toml_str).expect("Failed to parse config");
+
+        // key1: key1.default.val = { val = 1 }
+        let key1_decl = doc
+            .settings
+            .get("key1")
+            .unwrap()
+            .profiles
+            .get("default")
+            .unwrap();
+        assert!(!key1_decl.null);
+        assert!(key1_decl.env.is_none());
+        assert!(key1_decl.tags.is_empty());
+        let val1 = key1_decl.val.as_ref().unwrap().as_table().unwrap();
+        assert_eq!(val1.get("val").unwrap().as_integer(), Some(1));
+
+        // key2: key2.default.val = { null = true }
+        let key2_decl = doc
+            .settings
+            .get("key2")
+            .unwrap()
+            .profiles
+            .get("default")
+            .unwrap();
+        assert!(!key2_decl.null);
+        assert!(key2_decl.env.is_none());
+        assert!(key2_decl.tags.is_empty());
+        let val2 = key2_decl.val.as_ref().unwrap().as_table().unwrap();
+        assert_eq!(val2.get("null").unwrap().as_bool(), Some(true));
+
+        // key3: key3.default.val = { tags = [1, 2, 3] }
+        let key3_decl = doc
+            .settings
+            .get("key3")
+            .unwrap()
+            .profiles
+            .get("default")
+            .unwrap();
+        assert!(!key3_decl.null);
+        assert!(key3_decl.env.is_none());
+        assert!(key3_decl.tags.is_empty());
+        let val3 = key3_decl.val.as_ref().unwrap().as_table().unwrap();
+        let tags = val3.get("tags").unwrap().as_array().unwrap();
+        assert_eq!(tags.len(), 3);
+        assert_eq!(tags[0].as_integer(), Some(1));
+        assert_eq!(tags[1].as_integer(), Some(2));
+        assert_eq!(tags[2].as_integer(), Some(3));
+
+        // key4: key4.default.val = { env = "MY_VAR" }
+        let key4_decl = doc
+            .settings
+            .get("key4")
+            .unwrap()
+            .profiles
+            .get("default")
+            .unwrap();
+        assert!(!key4_decl.null);
+        assert!(key4_decl.env.is_none());
+        assert!(key4_decl.tags.is_empty());
+        let val4 = key4_decl.val.as_ref().unwrap().as_table().unwrap();
+        assert_eq!(val4.get("env").unwrap().as_str(), Some("MY_VAR"));
+
+        // key5: key5.default.val = { default = { val = 1 } }
+        let key5_decl = doc
+            .settings
+            .get("key5")
+            .unwrap()
+            .profiles
+            .get("default")
+            .unwrap();
+        assert!(!key5_decl.null);
+        assert!(key5_decl.env.is_none());
+        assert!(key5_decl.tags.is_empty());
+        let val5 = key5_decl.val.as_ref().unwrap().as_table().unwrap();
+        let nested_default = val5.get("default").unwrap().as_table().unwrap();
+        assert_eq!(nested_default.get("val").unwrap().as_integer(), Some(1));
+    }
 }
