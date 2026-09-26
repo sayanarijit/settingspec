@@ -8,7 +8,10 @@ use crate::profile::resolve_active_profile;
 use crate::resolver::resolve_settings;
 use clap::{Parser, Subcommand};
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::Duration;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -34,6 +37,8 @@ pub enum Commands {
         #[arg(last = true, required = true)]
         command: Vec<String>,
     },
+    /// Watches settingspec.toml and regenerates exports whenever it changes
+    Watch,
 }
 
 pub const INIT_CONFIG: &str = r#"[spec]
@@ -145,7 +150,49 @@ pub fn run_cli() -> Result<()> {
             let ctx = load_and_resolve()?;
             execute_run(&ctx, &command)
         }
+        Commands::Watch => run_watch(),
     }
+}
+
+fn run_watch() -> Result<()> {
+    let ctx = load_and_resolve()?;
+    perform_export(&ctx)?;
+
+    let config_path = ctx.project_root.join("settingspec.toml");
+
+    let (tx, rx) = mpsc::channel();
+
+    std::thread::spawn(move || {
+        let mut modified = std::fs::metadata(&config_path)
+            .ok()
+            .and_then(|m| m.modified().ok());
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            let new_modified = std::fs::metadata(&config_path)
+                .ok()
+                .and_then(|m| m.modified().ok());
+            if new_modified != modified {
+                modified = new_modified;
+                let _ = tx.send(());
+            }
+        }
+    });
+
+    while rx.recv().is_ok() {
+        println!("Detected change in settingspec.toml, reloading...");
+        match load_and_resolve() {
+            Ok(ctx) => {
+                if let Err(e) = perform_export(&ctx) {
+                    eprintln!("Error during export: {}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error loading configuration: {}", e);
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn perform_export(ctx: &ExecutionContext) -> Result<Vec<PathBuf>> {
@@ -250,7 +297,6 @@ fn execute_run(ctx: &ExecutionContext, command_args: &[String]) -> Result<()> {
         let child_stdin = child.stdin.take();
         let writer = std::thread::spawn(move || {
             if let Some(mut stdin) = child_stdin {
-                use std::io::Write;
                 let _ = stdin.write_all(payload.as_bytes());
             }
         });
@@ -449,7 +495,6 @@ pub fn auto_append_gitignore(ctx: &ExecutionContext) -> Result<()> {
         to_append.push('\n');
     }
 
-    use std::io::Write;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

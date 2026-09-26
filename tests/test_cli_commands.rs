@@ -13,6 +13,7 @@ fn test_cli_help_and_version() {
         .stdout(predicate::str::contains("init"))
         .stdout(predicate::str::contains("export"))
         .stdout(predicate::str::contains("check"))
+        .stdout(predicate::str::contains("watch"))
         .stdout(predicate::str::contains("run"));
 
     let mut cmd_ver = Command::cargo_bin("settingspec").unwrap();

@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://s15.gifyu.com/images/buXVO.png">
     <source media="(prefers-color-scheme: light)" srcset="https://s15.gifyu.com/images/buXZJ.png">
-    <img alt="The settingspec cover" width="600" src="https://s15.gifyu.com/images/buXZJ.png">
+    <img alt="The settingspec cover" width="100%" src="https://s15.gifyu.com/images/buXZJ.png">
   </picture>
 </p>
 
@@ -90,6 +90,12 @@ Now export the final settings as declared.
 
 ```bash
 settingspec export
+```
+
+Or keep watching to export when `settingspec.toml` changes.
+
+```bash
+settingspec watch
 ```
 
 Or directly run the program with exported settings.
