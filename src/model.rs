@@ -375,6 +375,55 @@ impl<'de> Deserialize<'de> for ExportConfig {
     }
 }
 
+fn default_decryption_key_env() -> String {
+    "SETTINGSPEC_DECRYPTION_KEY".to_string()
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+enum StringOrVec {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+fn deserialize_key_path<'de, D>(deserializer: D) -> std::result::Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<StringOrVec>::deserialize(deserializer)
+        .map_err(|_| serde::de::Error::custom("expected a string or an array of strings"))?;
+    match opt {
+        Some(StringOrVec::Single(s)) => Ok(vec![s]),
+        Some(StringOrVec::Multiple(v)) => Ok(v),
+        None => Ok(Vec::new()),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DecryptionKeyConfig {
+    #[serde(default = "default_decryption_key_env")]
+    pub env: String,
+    #[serde(default, deserialize_with = "deserialize_key_path")]
+    pub path: Vec<String>,
+}
+
+impl Default for DecryptionKeyConfig {
+    fn default() -> Self {
+        Self {
+            env: default_decryption_key_env(),
+            path: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DecryptionConfig {
+    #[serde(default)]
+    pub key: DecryptionKeyConfig,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SpecConfig {
@@ -384,6 +433,8 @@ pub struct SpecConfig {
     pub envfile: EnvFileConfig,
     #[serde(default)]
     pub export: ExportConfig,
+    #[serde(default)]
+    pub decryption: DecryptionConfig,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

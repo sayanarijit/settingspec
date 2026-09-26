@@ -389,3 +389,101 @@ key.default.val = "value"
             "expected a boolean or a format string",
         ));
 }
+
+#[test]
+fn test_unknown_field_in_spec_decryption_fails() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.decryption]
+unknown = "value"
+
+[settings]
+key.default.val = "value"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unknown field `unknown`"));
+}
+
+#[test]
+fn test_unknown_field_in_spec_decryption_key_fails() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.decryption.key]
+unknown = "value"
+
+[settings]
+key.default.val = "value"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unknown field `unknown`"));
+}
+
+#[test]
+fn test_invalid_type_in_spec_decryption_key_path_fails() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.decryption.key]
+path = 12345
+
+[settings]
+key.default.val = "value"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "expected a string or an array of strings",
+        ));
+}
+
+#[test]
+fn test_invalid_type_in_spec_decryption_key_env_fails() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.decryption.key]
+env = 12345
+
+[settings]
+key.default.val = "value"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("invalid type: integer `12345`"));
+}

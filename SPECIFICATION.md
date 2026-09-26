@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.3  
+**Version:** 0.4  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** [https://github.com/sayanarijit/settingspec](https://github.com/sayanarijit/settingspec)
@@ -43,7 +43,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 1. A SettingSpec configuration MUST be a valid [TOML v1.0.0](https://toml.io/en/v1.0.0) document.
 2. The configuration file name is `settingspec.toml`, located in the root of the project directory. If `settingspec.toml` is not found in the current directory, SettingSpec traverses parent directories upwards until it finds one; that directory is the project root.
 3. A SettingSpec document consists of two top-level tables:
-   - `[spec]`: Metadata, profile declarations, environment file sources, and export definitions (OPTIONAL).
+   - `[spec]`: Metadata, profile declarations, environment file sources, decryption key declarations, and export definitions (OPTIONAL).
    - `[settings]`: Setting definitions and per-profile value declarations (REQUIRED).
 
 ### 2.2 TOML Key Representations
@@ -59,7 +59,7 @@ key1.default.val = "val1"
 
 ## 3. The `[spec]` Section
 
-The `[spec]` section configures profile resolution, environment variable file loading, and export definitions.
+The `[spec]` section configures profile resolution, environment variable file loading, decryption key declarations and export definitions.
 
 ```toml
 [spec]
@@ -68,7 +68,11 @@ profile.options = ["dev", "stage", "prod"]
 profile.default = "dev"
 
 envfile.default = ".env"
+envfile.stage = ".env.age"  # age-encrypted env file
 envfile.prod = "-"
+
+decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"
+decryption.key.path = "~/.ssh/"
 
 [spec.export]
 mode = 0x600
@@ -103,21 +107,66 @@ The `profile` sub-table configures active profile selection and validation rules
 
 SettingSpec can load environment variable definition files (dotenv files) prior to resolving settings. This is declared under `spec.envfile`:
 
-- `envfile.default`: Environment file loaded by default for all profiles.
+- `envfile.default`: Environment file loaded when the active profile has no specific override.
 - `envfile.<profile>`: Environment file loaded specifically when `<profile>` is active.
 
 ```toml
 [spec]
 envfile.default = ".env"
+envfile.stage = ".env.age"
 envfile.prod = "-"
 ```
 
+An environment file MAY be [age](https://age-encryption.org/)-encrypted. SettingSpec identifies an encrypted environment file either by its `.age` extension or by detecting the age binary/armored payload header when reading the file's content, and transparently decrypts it (per Section 3.2.2) before it is parsed as dotenv content.
+
 #### 3.2.1 Sourcing Rules
 
-1. If an environment file is specified for the active profile (`envfile.<profile>`), it takes precedence over `envfile.default`.
+1. If an environment file is declared for the active profile (`envfile.<profile>`), it is loaded directly. If declared but the referenced file is missing, SettingSpec MUST terminate with an error (it MUST NOT fall back to `envfile.default`). SettingSpec MUST NOT overwrite or merge `envfile.default` with an active profile's environment file. If no profile-specific environment file is declared for the active profile, `envfile.default` is loaded as a fallback.
 2. Sourcing occurs **before** setting values are resolved.
 3. The special value `"-"` denotes reading environment variables in dotenv format (`KEY=VALUE`) from standard input (`stdin`).
 4. Sourced environment variables populate the execution environment for the duration of setting resolution and child command execution.
+5. If the environment file is age-encrypted, SettingSpec MUST decrypt it (Section 3.2.2) prior to applying Rules 1–4. The special value `"-"` (stdin) MAY also carry age-encrypted content; the same detection and decryption applies before dotenv parsing.
+
+#### 3.2.2 Encrypted Environment Files (`spec.decryption`)
+
+SettingSpec supports transparent decryption of [age](https://age-encryption.org/)-encrypted `envfile` sources, allowing encrypted secrets to be committed to source control alongside `settingspec.toml`.
+
+- Detection: a file referenced by `spec.envfile.*` is treated as age-encrypted if its name ends in `.age`, or its content matches the age binary or armored (`-----BEGIN AGE ENCRYPTED FILE-----`) format.
+- Decryption keys are resolved via the `decryption.key` sub-table:
+
+  | Field                 | Type                       | Default                        | Description                                                                                         |
+  | --------------------- | -------------------------- | ------------------------------ | --------------------------------------------------------------------------------------------------- |
+  | `decryption.key.env`  | String                     | `"SETTINGSPEC_DECRYPTION_KEY"` | Name of the environment variable inspected for age decryption identities (keys).                    |
+  | `decryption.key.path` | String or Array of Strings | unset                          | Fallback filesystem path(s) searched for age identity/key files when the env var is unset or empty. |
+
+  ```toml
+  [spec]
+  decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"
+  decryption.key.path = "~/.ssh/"
+  ```
+
+- `decryption.key.path` MAY be a single path or an array of paths; each path MAY reference a specific key file or a directory. Directories are searched recursively for candidate identity files (see Section 3.2.3, Path Lookup). Passphrase-protected identity files are not accepted (see Section 3.2.3, Passphrase Restriction).
+
+#### 3.2.3 Decryption Key Resolution Order
+
+1. **Environment Variable:** SettingSpec reads the environment variable named by `decryption.key.env` (default `SETTINGSPEC_DECRYPTION_KEY`). If set and non-empty, its value is interpreted per the **Value Format** rules below, and `decryption.key.path` is NOT consulted.
+2. **Fallback Path(s):** If the environment variable is unset or empty, SettingSpec falls back to `decryption.key.path`, resolved using the same **Path Lookup** rules below.
+3. **Resolution Failure:** If an `envfile.*` entry is age-encrypted and no decryption identity resolves via steps 1–2, decryption MUST fail and SettingSpec MUST terminate with an error identifying the affected profile and file.
+
+**Value Format (`decryption.key.env`):** The value of the environment variable named by `decryption.key.env` MUST be exactly one of the following two forms:
+
+- **A single literal age identity string** (e.g. `AGE-SECRET-KEY-1...`), used directly as the decryption identity; or
+- **One or more filesystem paths, delimited by colons (`:`)**, `PATH`-style (e.g. `~/.age/keys:/etc/settingspec/keys`), resolved per the **Path Lookup** rule below.
+
+A value is treated as a literal identity if it matches the age identity string format; otherwise it is treated as a colon-delimited path list.
+
+**Path Lookup:** For each path supplied — whether via `decryption.key.env` (when it holds paths) or via `decryption.key.path` — SettingSpec MUST:
+
+1. If the path is a file, consider that file directly.
+2. If the path is a directory, recursively scan the directory tree for files, and consider every file that matches a supported age identity file format.
+3. Attempt decryption against each considered candidate, in the order encountered, and use the first identity that successfully decrypts the file. If none succeed across all supplied paths, resolution fails per Rule 3 above.
+
+**Passphrase Restriction:** Age identity files protected by a passphrase (i.e., requiring interactive passphrase entry to unlock the identity itself) are NOT supported. SettingSpec MUST reject/skip passphrase-protected identity files and MUST only consider plain, unencrypted age identities as decryption candidates.
 
 ### 3.3 Export Configuration (`spec.export`)
 
@@ -341,7 +390,7 @@ flowchart TD
     StrictCheck -- No --> KeyOmitted["Key omitted"]
 ```
 
-> **Note:** This flowchart assumes the key path `K`, profile `P`, and directive have already been unambiguously decomposed from the raw TOML declaration per Section 4.1's positional parsing rule, and that no segment of `K` or `P` collides with a reserved directive keyword (Section 4.1.1). Declarations violating that constraint MUST be rejected during static validation (Section 5.3) before resolution begins.
+> **Note:** This flowchart assumes the key path `K`, profile `P`, and directive have already been unambiguously decomposed from the raw TOML declaration per Section 4.1's positional parsing rule, and that no segment of `K` or `P` collides with a reserved directive keyword (Section 4.1.1). Declarations violating that constraint MUST be rejected during static validation (Section 5.3) before resolution begins. Environment file sourcing (including decryption of age-encrypted `envfile` sources per Section 3.2.2) MUST complete before this resolution process begins, so that variables loaded from a decrypted envfile are visible to `CheckEnvExists`/`CheckDefaultEnvExists`.
 
 ### 5.3 Static Validation Rules
 
@@ -529,7 +578,7 @@ sequenceDiagram
 ```
 
 1. **File Generation:** SettingSpec resolves settings for the active profile and writes all target export files declared in `spec.export.file` using permission mode `spec.export.mode` (default `0x600`).
-2. **Execution:** The child process `<COMMAND> [ARGS...]` is spawned. Sourced environment variables from `spec.envfile` are set, if `spec.export.env` is configured, resolved settings are exported as environment variables into the child process, and if `spec.export.stdin` is configured, resolved settings are passed to the child process via standard input (stdin). Signals (e.g., `SIGINT`, `SIGTERM`) MUST be forwarded to the child process.
+2. **Execution:** The child process `<COMMAND> [ARGS...]` is spawned. Sourced environment variables from `spec.envfile` are set (decrypting any age-encrypted envfile per Section 3.2.2 first), if `spec.export.env` is configured, resolved settings are exported as environment variables into the child process, and if `spec.export.stdin` is configured, resolved settings are passed to the child process via standard input (stdin). Signals (e.g., `SIGINT`, `SIGTERM`) MUST be forwarded to the child process.
 3. **Cleanup:**
    - If `spec.export.keep` is `false` (default): All exported target files are deleted upon completion.
    - If `spec.export.keep` is `true`: Exported target files are retained on disk.
@@ -544,7 +593,7 @@ settingspec check [OPTIONS]
 ```
 
 - Returns exit code `0` on validation success.
-- Returns non-zero exit code with diagnostic errors if syntax is invalid, profiles are incomplete, or required environment variables are missing.
+- Returns non-zero exit code with diagnostic errors if syntax is invalid, profiles are incomplete, or required environment variables are missing. Validation MUST also verify that any age-encrypted `envfile` entries have a working decryption identity for the active profile per Section 3.2.3.
 
 ### 7.5 Subcommand: `init`
 
@@ -565,3 +614,4 @@ settingspec init [OPTIONS]
 2. **Ephemeral Secrets:** Applications that utilize `settingspec run` benefit from ephemeral file lifetimes. By default (`spec.export.keep = false`), SettingSpec guarantees cleanup of exported files upon process exit, even in the event of child errors or termination signals.
 3. **Source Control Hygiene:** Configuration authors SHOULD add generated targets (e.g., `settings.toml`, `settings.json` etc.) to `.gitignore` to prevent inadvertent commits of decrypted secrets. When inside a git repository, SettingSpec automatically appends exported target files to `.gitignore` (adjacent to the git root) before each `run` or `export` execution if not already present, unless disabled via `spec.export.skip_gitignore = true`.
 4. **Standard Input for Secrets:** When pairing with secret managers (e.g., SecretSpec, 1Password CLI, Vault), users SHOULD pass secrets via environment variables or stdin (`envfile.prod = "-"`) to avoid writing raw secrets to persistent disk.
+5. **Age-Encrypted Environment Files:** Unlike plaintext `envfile` sources, age-encrypted `envfile` sources (Section 3.2.2) MAY be safely committed to source control, since their contents are unreadable without a resolvable decryption identity. Configuration authors SHOULD NOT rely on this to relax the `.gitignore` guidance in Rule 3 for any _decrypted output_ — only the encrypted source file itself is safe to commit. Decryption identities supplied via `decryption.key.env` (including multi-key, colon-delimited values, Section 3.2.3) MUST NOT be committed to source control or logged in plaintext by SettingSpec or downstream tooling.

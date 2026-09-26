@@ -105,7 +105,11 @@ pub fn load_and_resolve() -> Result<ExecutionContext> {
     let doc = parse_config_str(&content)?;
 
     let active_profile = resolve_active_profile(&doc.spec.profile)?;
-    let sourced_env = source_env_file(&doc.spec.envfile, active_profile.as_deref())?;
+    let sourced_env = source_env_file(
+        &doc.spec.envfile,
+        &doc.spec.decryption,
+        active_profile.as_deref(),
+    )?;
     let resolved_settings = resolve_settings(
         &doc.settings,
         &doc.spec,

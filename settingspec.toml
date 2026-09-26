@@ -7,11 +7,15 @@ profile.options = [ # Optional: Enables strict checking of per-profile declarati
 ]
 profile.default = "dev" # Optional: Default profile when the switch is not set
 
-envfile.default = ".env"  # Load environment variables from this file for all profiles
-# envfile.prod = "-"      # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
+envfile.default = ".env"    # Default environment file
+envfile.stage = ".env.age"  # Also supports age encrypted env files
+envfile.prod = "-"          # Read from stdin, encrypted or not
 
-# export.file = true # Default: Export all settings into settings.toml (or specify fine-grained file map)
-export.file = {              # Optional: Fine-grained control over what to export
+decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"  # Default: Environment variable name to read the decryption key from
+decryption.key.path = "~/.ssh/"                    # Default: Fallback lookup path(s) for the decryption key (can be list)
+
+# export.file = true  # Default: Export all settings into settings.toml
+export.file = {       # Optional: Fine-grained control over what to export
   "settings.toml" = true,
   "settings.py" = true,
   "settings.lua" = true,

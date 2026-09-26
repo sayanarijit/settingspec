@@ -19,6 +19,7 @@ pub enum SettingSpecError {
     MissingRequiredEnvVar(String, String), // setting key, env var name
     RequiredValueMissing(String),         // setting key
     EnvFileNotFound(String),
+    DecryptionFailed(String, String), // profile, file
     InvalidExportFormat(String),
     IoError(String),
     CommandFailed(i32),
@@ -98,6 +99,11 @@ impl fmt::Display for SettingSpecError {
                 write!(f, "Required value missing for setting '{}'", k)
             }
             Self::EnvFileNotFound(path) => write!(f, "Environment file '{}' not found", path),
+            Self::DecryptionFailed(profile, file) => write!(
+                f,
+                "Failed to decrypt age-encrypted environment file '{}' for profile '{}'",
+                file, profile
+            ),
             Self::InvalidExportFormat(fmt) => write!(f, "Unsupported export format: '{}'", fmt),
             Self::IoError(msg) => write!(f, "I/O error: {}", msg),
             Self::CommandFailed(code) => write!(f, "Child command exited with code {}", code),

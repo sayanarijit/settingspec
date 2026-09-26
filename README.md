@@ -11,14 +11,16 @@
 [![PyPI Version](https://img.shields.io/pypi/v/settingspec)](https://pypi.org/project/settingspec)
 [![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fsettingspec)](https://www.npmjs.com/package/@sayanarijit/settingspec)
 
-1. [Concepts](#concepts)
-   1. [Single file convenience](#single-file-convenience)
-   2. [Declarative profiles / environments](#declarative-profiles-/-environments)
-   3. [Language independent](#language-independent)
-   4. [Easy secrets](#easy-secrets)
-      1. [SecretSpec](#secretspec)
-      2. [Dotenv](#dotenv)
-2. [Learn more](#learn-more)
+# Table of contents
+
+1.  [Concepts](#concepts)
+    1. [Single file convenience](#single-file-convenience)
+    2. [Declarative profiles as environments](#declarative-profiles-as-environments)
+    3. [Language independent](#language-independent)
+    4. [Easy secrets](#easy-secrets)
+       1. [SecretSpec](#secretspec)
+       2. [Dotenv](#dotenv)
+2.  [Learn more](#learn-more)
 
 ## Concepts
 
@@ -26,7 +28,7 @@
 
 With a single source of truth, i.e., `settingspec.toml`, you don't need to mentally merge settings from multiple files, say `common.toml`, `dev.toml`, `prod.toml`, etc. No surprise overwrites. One file for all environments, all languages, all submodules.
 
-### Declarative profiles / environments
+### Declarative profiles as environments
 
 ```toml
 [spec]                               # Optional: Declare the specification here
@@ -58,8 +60,8 @@ The command-line tool `settingspec` can export the final settings into well-know
 
 ```toml
 [spec]
-export.file = true             # Default: Export all settings into settings.toml (or specify fine-grained file map)
-# export.file = {              # Optional: Fine-grained control over what to export
+export.file = true  # Default: Export all settings into settings.toml
+# export.file = {   # Optional: Fine-grained control over what to export
 #   "settings.json" = true,
 #   "settings.yaml" = {
 #     key1 = true,
@@ -152,8 +154,12 @@ Or keep things simple with [Dotenv](https://www.dotenv.org).
 [spec]
 profile.options = ["dev", "stage", "prod"]
 
-envfile.default = ".env"  # Load environment variables from this file for all profiles
-envfile.prod = "-"        # Load environment variables from stdin when SETTINGSPEC_PROFILE=prod
+envfile.default = ".env"    # Default environment file
+envfile.stage = ".env.age"  # Also supports age-encrypted env files
+envfile.prod = "-"          # Read from stdin, encrypted or not
+
+# decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"  # Default
+# decryption.key.path = "~/.ssh/"                    # Default
 
 [settings]
 secret1.default.env = "SECRET1"     # Load value from $SECRET1
