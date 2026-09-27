@@ -14,7 +14,8 @@ fn test_cli_help_and_version() {
         .stdout(predicate::str::contains("export"))
         .stdout(predicate::str::contains("check"))
         .stdout(predicate::str::contains("watch"))
-        .stdout(predicate::str::contains("run"));
+        .stdout(predicate::str::contains("run"))
+        .stdout(predicate::str::contains("clean"));
 
     let mut cmd_ver = Command::cargo_bin("settingspec").unwrap();
     cmd_ver
@@ -1045,4 +1046,43 @@ key.default.val = "from_child"
     sub.child("settings.toml").assert(predicate::path::exists());
     let content = std::fs::read_to_string(sub.child("settings.toml").path()).unwrap();
     assert!(content.contains("key = \"from_child\""));
+}
+
+#[test]
+fn test_cli_clean_exported_files() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.toml" = true
+[settings]
+key.default.val = "val"
+"#,
+        )
+        .unwrap();
+
+    // First export to create the file
+    let mut export_cmd = Command::cargo_bin("settingspec").unwrap();
+    export_cmd
+        .current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    temp.child("settings.toml")
+        .assert(predicate::path::exists());
+
+    // Now run clean command to remove exported files
+    let mut clean_cmd = Command::cargo_bin("settingspec").unwrap();
+    clean_cmd
+        .current_dir(temp.path())
+        .arg("clean")
+        .assert()
+        .success();
+
+    // Verify exported file is removed
+    temp.child("settings.toml")
+        .assert(predicate::path::missing());
 }

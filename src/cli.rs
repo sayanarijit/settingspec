@@ -57,6 +57,9 @@ pub enum Commands {
     },
     /// Watches settingspec.toml and regenerates exports whenever it changes
     Watch,
+
+    /// Deletes all generated export files
+    Clean,
 }
 
 pub const INIT_CONFIG: &str = r#"[spec]
@@ -169,6 +172,7 @@ pub fn run_cli() -> Result<()> {
             execute_run(&ctx, &command)
         }
         Commands::Watch => run_watch(),
+        Commands::Clean => clean_exported_files(),
     }
 }
 
@@ -276,6 +280,17 @@ fn perform_export(ctx: &ExecutionContext) -> Result<Vec<PathBuf>> {
     }
 
     Ok(generated_files)
+}
+
+fn clean_exported_files() -> Result<()> {
+    let ctx = load_and_resolve()?;
+
+    let _guard = CleanupGuard {
+        keep: false,
+        paths: ctx.doc.spec.export.file.keys().map(PathBuf::from).collect(),
+    };
+
+    Ok(())
 }
 
 fn execute_run(ctx: &ExecutionContext, command_args: &[String]) -> Result<()> {

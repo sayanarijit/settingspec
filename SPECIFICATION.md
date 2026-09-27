@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.5.1  
+**Version:** 0.6  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** <https://github.com/sayanarijit/settingspec>
@@ -721,36 +721,15 @@ All commands support:
 -V, --version    Show the version.
 ```
 
-### 7.2 `export`
+### 7.2 `init`
 
-Generates the configured export files and/or writes resolved settings to standard output.
-
-```bash
-settingspec export [OPTIONS]
-```
-
-### 7.3 `run`
-
-Runs another command with the resolved configuration available to it.
+Creates a starter `settingspec.toml` in the current directory.
 
 ```bash
-settingspec run [OPTIONS] -- <COMMAND> [ARGS...]
+settingspec init [OPTIONS]
 ```
 
-#### What happens during `run`
-
-1. SettingSpec resolves the active profile and settings.
-2. It creates the configured export files using `spec.export.mode` (default `0x600`).
-3. It starts the requested command.
-4. If configured, environment variables are provided to the child process.
-5. If configured, resolved settings are sent to the child's standard input.
-6. Signals such as `SIGINT` and `SIGTERM` are forwarded to the child process.
-7. When the child finishes:
-   - With `export.keep = false` (default), generated files are deleted.
-   - With `export.keep = true`, generated files remain.
-8. SettingSpec exits with the same status code as the child command.
-
-### 7.4 `check`
+### 7.3 `check`
 
 Checks the configuration without creating files.
 
@@ -771,7 +750,36 @@ Exit codes:
 - `0` — validation passed.
 - Non-zero — validation failed.
 
-### 7.5 `watch`
+### 7.4 `export`
+
+Generates the configured export files and/or writes resolved settings to standard output.
+
+```bash
+settingspec export [OPTIONS]
+```
+
+### 7.5 `run`
+
+Runs another command with the resolved configuration available to it.
+
+```bash
+settingspec run [OPTIONS] -- <COMMAND> [ARGS...]
+```
+
+#### What happens during `run`
+
+1. SettingSpec resolves the active profile and settings.
+2. It creates the configured export files using `spec.export.mode` (default `0x600`).
+3. It starts the requested command.
+4. If configured, environment variables are provided to the child process.
+5. If configured, resolved settings are sent to the child's standard input.
+6. Signals such as `SIGINT` and `SIGTERM` are forwarded to the child process.
+7. When the child finishes:
+   - With `export.keep = false` (default), generated files are deleted.
+   - With `export.keep = true`, generated files remain.
+8. SettingSpec exits with the same status code as the child command.
+
+### 7.6 `watch`
 
 Runs SettingSpec as a long-running service and regenerates the configured export files whenever `settingspec.toml` changes.
 
@@ -781,15 +789,15 @@ Upon exit, files are cleaned up as per declared `spec.export.keep` behavior.
 settingspec watch [OPTIONS]
 ```
 
-### 7.6 `init`
+If `settingspec.toml` already exists, `init` does nothing and does not overwrite it.
 
-Creates a starter `settingspec.toml` in the current directory.
+### 7.7 `clean`
+
+Deletes the export files defined in `spec.export.file`. Keeps the gitignore entries.
 
 ```bash
-settingspec init [OPTIONS]
+settingspec clean [OPTIONS]
 ```
-
-If `settingspec.toml` already exists, `init` does nothing and does not overwrite it.
 
 ---
 
