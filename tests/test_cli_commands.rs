@@ -779,7 +779,7 @@ key1.default.val = "val1"
 }
 
 #[test]
-fn test_gitignore_auto_append_subdirectory_to_git_root() {
+fn test_gitignore_auto_append_adjacent_to_project_root_in_subdirectory() {
     let temp = assert_fs::TempDir::new().unwrap();
     temp.child(".git").create_dir_all().unwrap();
 
@@ -802,12 +802,80 @@ key1.default.val = "val1"
     let mut cmd = Command::cargo_bin("settingspec").unwrap();
     cmd.current_dir(sub.path()).arg("export").assert().success();
 
+    let sub_gitignore = sub.child(".gitignore");
+    sub_gitignore.assert(predicate::path::exists());
+    sub_gitignore.assert(predicate::str::contains("/output.json\n"));
+
     let root_gitignore = temp.child(".gitignore");
-    root_gitignore.assert(predicate::path::exists());
-    root_gitignore.assert(predicate::str::contains("subapp/output.json\n"));
+    root_gitignore.assert(predicate::path::missing());
+}
+
+#[test]
+fn test_gitignore_auto_append_from_deep_subdirectory_in_project_root() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child(".git").create_dir_all().unwrap();
+
+    let sub = temp.child("subapp");
+    sub.create_dir_all().unwrap();
+
+    let deep = sub.child("deep").child("nested");
+    deep.create_dir_all().unwrap();
+
+    let config = sub.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"output.json" = true
+
+[settings]
+key1.default.val = "val1"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(deep.path())
+        .arg("export")
+        .assert()
+        .success();
 
     let sub_gitignore = sub.child(".gitignore");
-    sub_gitignore.assert(predicate::path::missing());
+    sub_gitignore.assert(predicate::path::exists());
+    sub_gitignore.assert(predicate::str::contains("/output.json\n"));
+
+    let deep_gitignore = deep.child(".gitignore");
+    deep_gitignore.assert(predicate::path::missing());
+
+    let root_gitignore = temp.child(".gitignore");
+    root_gitignore.assert(predicate::path::missing());
+}
+
+#[test]
+fn test_gitignore_not_created_when_not_in_git_repo() {
+    let temp = assert_fs::TempDir::new().unwrap();
+
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"output.json" = true
+
+[settings]
+key1.default.val = "val1"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let gitignore = temp.child(".gitignore");
+    gitignore.assert(predicate::path::missing());
 }
 
 #[test]

@@ -13,14 +13,15 @@
 
 # SettingSpec
 
-1.  [Concepts](#concepts)
-    1. [Single file convenience](#single-file-convenience)
-    2. [Declarative profiles as environments](#declarative-profiles-as-environments)
-    3. [Language independent](#language-independent)
-    4. [Easy secrets](#easy-secrets)
-       1. [SecretSpec](#secretspec)
-       2. [Dotenv](#dotenv)
-2.  [Learn more](#learn-more)
+1. [Concepts](#concepts)
+   1. [Single file convenience](#single-file-convenience)
+   2. [Declarative profiles as environments](#declarative-profiles-as-environments)
+   3. [Language independent](#language-independent)
+   4. [Easy secrets](#easy-secrets)
+      1. [SecretSpec](#secretspec)
+      2. [Dotenv](#dotenv)
+      3. [Cottage or agebox](#cottage-or-agebox)
+2. [Learn more](#learn-more)
 
 ## Concepts
 
@@ -169,6 +170,22 @@ envfile.prod = "-"          # Read from stdin, encrypted or not
 
 [settings]
 secret1.default.env = "SECRET1"     # Load value from $SECRET1
+```
+
+#### Cottage or agebox
+
+Too simple? Use [Cottage](https://cottage-cli.pages.dev) or [agebox](https://github.com/slok/agebox).
+
+```toml
+[spec]
+envfile.default = ".env.cott.age"
+
+# decryption.key.env = "AGEBOX_PRIVATE_KEYS"
+# decryption.key.env = "COTTAGE_IDENTITY"
+decryption.key.path = "~/.config/cottage/identity:~/.ssh"
+
+[settings]
+secret.default.env = "SECRET"
 ```
 
 ## Learn more

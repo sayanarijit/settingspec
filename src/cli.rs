@@ -7,11 +7,29 @@ use crate::parser::parse_config_str;
 use crate::profile::resolve_active_profile;
 use crate::resolver::resolve_settings;
 use clap::{Parser, Subcommand};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::time::Duration;
+
+#[derive(Default)]
+struct CleanupGuard {
+    keep: bool,
+    paths: HashSet<PathBuf>,
+}
+
+impl Drop for CleanupGuard {
+    fn drop(&mut self) {
+        if !self.keep {
+            self.paths.iter().for_each(|path| {
+                if std::fs::exists(path).unwrap_or(false) {
+                    let _ = std::fs::remove_file(path);
+                }
+            });
+        }
+    }
+}
 
 #[derive(Parser, Debug)]
 #[command(
@@ -156,35 +174,66 @@ pub fn run_cli() -> Result<()> {
 
 fn run_watch() -> Result<()> {
     let ctx = load_and_resolve()?;
-    perform_export(&ctx)?;
-
     let config_path = ctx.project_root.join("settingspec.toml");
+    let mut guard = CleanupGuard::default();
 
     let (tx, rx) = mpsc::channel();
+    let (txsig, rxsig) = mpsc::channel();
+
+    ctrlc::set_handler(move || txsig.send(()).expect("Could not send signal on channel."))
+        .expect("Error setting Ctrl-C handler");
 
     std::thread::spawn(move || {
+        let _ = tx.send(true); // Trigger initial export
+
         let mut modified = std::fs::metadata(&config_path)
             .ok()
             .and_then(|m| m.modified().ok());
+
         loop {
             std::thread::sleep(Duration::from_secs(1));
-            let new_modified = std::fs::metadata(&config_path)
-                .ok()
-                .and_then(|m| m.modified().ok());
-            if new_modified != modified {
-                modified = new_modified;
-                let _ = tx.send(());
+            if rxsig.try_recv().is_ok() {
+                let _ = tx.send(false);
+                break;
+            } else {
+                let new_modified = std::fs::metadata(&config_path)
+                    .ok()
+                    .and_then(|m| m.modified().ok());
+                if new_modified != modified {
+                    modified = new_modified;
+                    let _ = tx.send(true);
+                }
             }
         }
     });
 
-    while rx.recv().is_ok() {
-        println!("Detected change in settingspec.toml, reloading...");
+    while rx.recv().unwrap_or(false) {
         match load_and_resolve() {
-            Ok(ctx) => {
+            Ok(mut ctx) => {
+                guard.keep = ctx.doc.spec.export.keep;
+                if ctx.doc.spec.export.file.is_empty() {
+                    eprintln!("No export files configured, skipping export.");
+                    continue;
+                }
+                ctx.doc.spec.export.stdout = None;
+                ctx.doc.spec.export.stdin = None;
+                ctx.doc.spec.export.env = None;
+
+                eprintln!("Exporting files...");
                 if let Err(e) = perform_export(&ctx) {
                     eprintln!("Error during export: {}", e);
                 }
+                ctx.doc
+                    .spec
+                    .export
+                    .file
+                    .iter()
+                    .for_each(|(file_path_str, filter)| {
+                        if !matches!(filter, ExportFilter::Disabled) {
+                            guard.paths.insert(PathBuf::from(file_path_str));
+                            println!("{file_path_str}");
+                        }
+                    });
             }
             Err(e) => {
                 eprintln!("Error loading configuration: {}", e);
@@ -192,6 +241,7 @@ fn run_watch() -> Result<()> {
         }
     }
 
+    eprintln!("Exiting watch mode.");
     Ok(())
 }
 
@@ -236,28 +286,10 @@ fn execute_run(ctx: &ExecutionContext, command_args: &[String]) -> Result<()> {
     }
 
     // Export all files
-    let generated_files = perform_export(ctx)?;
-
-    // Setup cleanup guard
-    struct CleanupGuard {
-        files: Vec<PathBuf>,
-        keep: bool,
-    }
-
-    impl Drop for CleanupGuard {
-        fn drop(&mut self) {
-            if !self.keep {
-                for f in &self.files {
-                    let _ = std::fs::remove_file(f);
-                }
-            }
-        }
-    }
-
-    let _guard = CleanupGuard {
-        files: generated_files,
+    let _guard = perform_export(ctx).map(|files| CleanupGuard {
         keep: ctx.doc.spec.export.keep,
-    };
+        paths: files.into_iter().collect(),
+    })?;
 
     let stdin_payload = if let Some(ref stdin_fmt) = ctx.doc.spec.export.stdin {
         Some(generate_by_format(stdin_fmt, &ctx.resolved_settings)?)
@@ -418,16 +450,14 @@ pub fn auto_append_gitignore(ctx: &ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let current_dir = &ctx.project_root;
-    let git_root = match find_git_root(current_dir) {
-        Some(root) => root,
-        None => return Ok(()),
-    };
+    if find_git_root(&ctx.project_root).is_none() {
+        return Ok(());
+    }
 
-    let git_root_canon = git_root.canonicalize().unwrap_or_else(|_| git_root.clone());
-    let current_dir_canon = current_dir
+    let project_root = &ctx.project_root;
+    let project_root_canon = project_root
         .canonicalize()
-        .unwrap_or_else(|_| current_dir.clone());
+        .unwrap_or_else(|_| project_root.clone());
 
     let mut entries_to_add = Vec::new();
 
@@ -438,13 +468,13 @@ pub fn auto_append_gitignore(ctx: &ExecutionContext) -> Result<()> {
 
         let target_path = Path::new(file_path_str);
         let full_target = if target_path.is_relative() {
-            current_dir_canon.join(target_path)
+            project_root_canon.join(target_path)
         } else {
             target_path.to_path_buf()
         };
 
         let normalized = normalize_path(&full_target);
-        let rel_path = match normalized.strip_prefix(&git_root_canon) {
+        let rel_path = match normalized.strip_prefix(&project_root_canon) {
             Ok(rel) => rel,
             Err(_) => continue,
         };
@@ -468,7 +498,7 @@ pub fn auto_append_gitignore(ctx: &ExecutionContext) -> Result<()> {
         return Ok(());
     }
 
-    let gitignore_path = git_root.join(".gitignore");
+    let gitignore_path = project_root.join(".gitignore");
     let existing_content = if gitignore_path.exists() {
         std::fs::read_to_string(&gitignore_path)?
     } else {

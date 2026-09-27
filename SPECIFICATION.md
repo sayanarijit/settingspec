@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.5  
+**Version:** 0.6  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** <https://github.com/sayanarijit/settingspec>
@@ -18,7 +18,7 @@ A common approach is to keep separate files such as `common.toml`, `dev.toml`, a
 1. **Hard to understand:** Developers must combine several files mentally and work out which value wins.
 2. **Configuration drift:** A setting may be missing in production and the problem may not be noticed until deployment or runtime.
 3. **Language-specific configuration:** A configuration written for one language may need to be duplicated or converted for another.
-4. **Secrets are awkward to manage:** Secrets may accidentally be committed to source control or kept separate from the configuration rules.
+4. **Secrets are awkward to manage:** Secrets may accidentally be committed to source control or kept separate from the configuration rules or may become the configuration themselves.
 
 **SettingSpec** uses one configuration file, `settingspec.toml`, as the source of truth.
 
@@ -38,6 +38,8 @@ The words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOU
 ### 1.3 Terms
 
 - **Configuration file:** The main TOML file: `settingspec.toml`.
+- **Generated configuration file:** A file created by SettingSpec during `export`, `run` or `watch`.
+- **Project root:** The directory containing `settingspec.toml`.
 - **Profile:** A named environment or operating mode, such as `dev`, `stage`, or `prod`.
 - **Default profile:** The `default` profile. It provides values that apply to all profiles unless a profile overrides them.
 - **Setting key:** A setting name that can contain dot-separated parts, such as `database.host`.
@@ -536,7 +538,7 @@ SettingSpec MUST validate the configuration before exporting or executing anythi
 
 It checks that:
 
-1. Every profile is declared in settings belong to the options declared in spec.
+1. Every profile declared in settings belongs to the options declared in spec.
 2. Every setting has complete profile coverage when strict profile validation is enabled.
 3. Every declaration uses valid directives.
 4. No setting key or profile name uses a reserved directive name.
@@ -773,6 +775,8 @@ Exit codes:
 
 Runs SettingSpec as a long-running service and regenerates the configured export files whenever `settingspec.toml` changes.
 
+Upon exit, files are cleaned up as per declared `spec.export.keep` behavior.
+
 ```bash
 settingspec watch [OPTIONS]
 ```
@@ -805,7 +809,7 @@ By default, `settingspec run` deletes generated export files when the child proc
 
 Generated files can contain secrets. They SHOULD be excluded from source control.
 
-SettingSpec automatically adds generated export targets to `.gitignore` when running inside a Git repository, unless:
+SettingSpec automatically adds generated export targets to `.gitignore` adjacent to project root when running inside a Git repository, unless:
 
 ```toml
 spec.export.skip_gitignore = true
@@ -831,8 +835,8 @@ Decryption identities supplied through `decryption.key.env`, including colon-sep
 
 ### 8.6 Restrict AI agents
 
-If the settings contain sensitive keys, AI agents must not be given access to the `settingspec` command or the sensitive secret sources in any way.
+If the settings contain sensitive keys, AI agents MUST NOT be given access to the `settingspec` command or the sensitive secret sources in any way.
 
-Prefer workflows that do not require exporting settings to disk or exposing them to the AI.
+You SHOULD prefer workflows that do not require exporting settings to disk or exposing them to the AI.
 
-In the presence of encrypted env files, the decryption key should be kept out of the AI's reach.
+In the presence of encrypted env files, the decryption key SHOULD be kept out of the AI's reach.
