@@ -179,10 +179,11 @@ Too simple? Use [Cottage](https://cottage-cli.pages.dev) or [agebox](https://git
 ```toml
 [spec]
 envfile.default = ".env.cott.age"
+# envfile.default = ".env.agebox"
 
-# decryption.key.env = "AGEBOX_PRIVATE_KEYS"
-# decryption.key.env = "COTTAGE_IDENTITY"
 decryption.key.path = "~/.config/cottage/identity:~/.ssh"
+decryption.key.env = "COTTAGE_IDENTITY"
+# decryption.key.env = "AGEBOX_PRIVATE_KEYS"
 
 [settings]
 secret.default.env = "SECRET"
