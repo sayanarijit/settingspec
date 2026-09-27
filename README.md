@@ -20,7 +20,7 @@
    4. [Easy secrets](#easy-secrets)
       1. [SecretSpec](#secretspec)
       2. [Dotenv](#dotenv)
-      3. [Cottage](#cottage)
+      3. [Cottage or agebox](#cottage-or-agebox)
 2. [Learn more](#learn-more)
 
 ## Concepts
@@ -172,14 +172,15 @@ envfile.prod = "-"          # Read from stdin, encrypted or not
 secret1.default.env = "SECRET1"     # Load value from $SECRET1
 ```
 
-#### Cottage
+#### Cottage or agebox
 
-Too simple? Use [Cottage](https://cottage-cli.pages.dev).
+Too simple? Use [Cottage](https://cottage-cli.pages.dev) or [agebox](https://github.com/slok/agebox).
 
 ```toml
 [spec]
 envfile.default = ".env.cott.age"
 
+# decryption.key.env = "AGEBOX_PRIVATE_KEYS"
 # decryption.key.env = "COTTAGE_IDENTITY"
 decryption.key.path = "~/.config/cottage/identity:~/.ssh"
 
