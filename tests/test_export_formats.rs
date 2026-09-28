@@ -282,6 +282,51 @@ api.timeout._.default.val = 30
 }
 
 #[test]
+fn test_export_stdout_new_languages() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+
+    for fmt in [
+        "rust",
+        "rs",
+        "go",
+        "golang",
+        "zig",
+        "c",
+        "cpp",
+        "c++",
+        "java",
+        "elm",
+        "ruby",
+        "rb",
+        "scala",
+        "haskell",
+        "hs",
+        "terraform",
+        "tf",
+    ] {
+        config
+            .write_str(&format!(
+                r#"
+[spec.export]
+stdout = "{}"
+
+[settings]
+key1._.default.val = "val1"
+"#,
+                fmt
+            ))
+            .unwrap();
+
+        let mut cmd = Command::cargo_bin("settingspec").unwrap();
+        cmd.current_dir(temp.path())
+            .arg("export")
+            .assert()
+            .success();
+    }
+}
+
+#[test]
 fn test_export_file_env_format() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config = temp.child("settingspec.toml");
@@ -377,4 +422,446 @@ app.name._.default.val = "MyApp"
         .stderr(predicate::str::contains(
             "Unsupported export format: '.unknown'",
         ));
+}
+
+#[test]
+fn test_export_rust() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.rs" = true
+
+[settings]
+top_key._.default.val = "top_val"
+top_null._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.rs");
+    out.assert(predicate::str::contains(
+        "pub const top_key: &'static str = \"top_val\";",
+    ));
+    out.assert(predicate::str::contains(
+        "pub const top_null: Option<&'static str> = None;",
+    ));
+    out.assert(predicate::str::contains("pub mod database {"));
+    out.assert(predicate::str::contains(
+        "pub const host: &'static str = \"localhost\";",
+    ));
+    out.assert(predicate::str::contains("pub const port: i64 = 5432;"));
+    out.assert(predicate::str::contains(
+        "pub const password: Option<&'static str> = None;",
+    ));
+}
+
+#[test]
+fn test_export_go() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.go" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.go");
+    out.assert(predicate::str::contains("package settings"));
+    out.assert(predicate::str::contains("Key1 = \"val1\""));
+    out.assert(predicate::str::contains("Key2 any = nil"));
+    out.assert(predicate::str::contains("var Database = struct {"));
+    out.assert(predicate::str::contains("Host string"));
+    out.assert(predicate::str::contains("Port int"));
+    out.assert(predicate::str::contains("Host: \"localhost\""));
+    out.assert(predicate::str::contains("Port: 5432"));
+    out.assert(predicate::str::contains("Password: nil"));
+}
+
+#[test]
+fn test_export_zig() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.zig" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.zig");
+    out.assert(predicate::str::contains("pub const key1 = \"val1\";"));
+    out.assert(predicate::str::contains("pub const key2 = null;"));
+    out.assert(predicate::str::contains("pub const database = struct {"));
+    out.assert(predicate::str::contains("pub const host = \"localhost\";"));
+    out.assert(predicate::str::contains("pub const port = 5432;"));
+    out.assert(predicate::str::contains("pub const password = null;"));
+}
+
+#[test]
+fn test_export_c() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.h" = true
+"settings.c" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    for file in ["settings.h", "settings.c"] {
+        let out = temp.child(file);
+        out.assert(predicate::str::contains("#ifndef SETTINGS_H"));
+        out.assert(predicate::str::contains("const char* host;"));
+        out.assert(predicate::str::contains("long long port;"));
+        out.assert(predicate::str::contains(
+            "static const Settings settings = {",
+        ));
+        out.assert(predicate::str::contains(".host = \"localhost\""));
+        out.assert(predicate::str::contains(".port = 5432"));
+        out.assert(predicate::str::contains(".password = NULL"));
+    }
+}
+
+#[test]
+fn test_export_cpp() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.hpp" = true
+"settings.cpp" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    for file in ["settings.hpp", "settings.cpp"] {
+        let out = temp.child(file);
+        out.assert(predicate::str::contains("namespace settings {"));
+        out.assert(predicate::str::contains(
+            "inline constexpr const char* key1 = \"val1\";",
+        ));
+        out.assert(predicate::str::contains(
+            "inline constexpr std::nullptr_t key2 = nullptr;",
+        ));
+        out.assert(predicate::str::contains("namespace database {"));
+        out.assert(predicate::str::contains(
+            "inline constexpr const char* host = \"localhost\";",
+        ));
+        out.assert(predicate::str::contains(
+            "inline constexpr long long port = 5432;",
+        ));
+        out.assert(predicate::str::contains(
+            "inline constexpr std::nullptr_t password = nullptr;",
+        ));
+    }
+}
+
+#[test]
+fn test_export_java() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"Settings.java" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("Settings.java");
+    out.assert(predicate::str::contains("public final class Settings {"));
+    out.assert(predicate::str::contains(
+        "public static final String key1 = \"val1\";",
+    ));
+    out.assert(predicate::str::contains(
+        "public static final Object key2 = null;",
+    ));
+    out.assert(predicate::str::contains(
+        "public static final class database {",
+    ));
+    out.assert(predicate::str::contains(
+        "public static final String host = \"localhost\";",
+    ));
+    out.assert(predicate::str::contains(
+        "public static final long port = 5432L;",
+    ));
+    out.assert(predicate::str::contains(
+        "public static final Object password = null;",
+    ));
+}
+
+#[test]
+fn test_export_elm() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"Settings.elm" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("Settings.elm");
+    out.assert(predicate::str::contains("module Settings exposing (..)"));
+    out.assert(predicate::str::contains("settings ="));
+    out.assert(predicate::str::contains("key1 = \"val1\""));
+    out.assert(predicate::str::contains("key2 = Nothing"));
+    out.assert(predicate::str::contains("host = \"localhost\""));
+    out.assert(predicate::str::contains("port_ = 5432"));
+    out.assert(predicate::str::contains("password = Nothing"));
+}
+
+#[test]
+fn test_export_ruby() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.rb" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.rb");
+    out.assert(predicate::str::contains("module Settings"));
+    out.assert(predicate::str::contains("KEY1 = \"val1\".freeze"));
+    out.assert(predicate::str::contains("KEY2 = nil"));
+    out.assert(predicate::str::contains("module Database"));
+    out.assert(predicate::str::contains("HOST = \"localhost\".freeze"));
+    out.assert(predicate::str::contains("PORT = 5432"));
+    out.assert(predicate::str::contains("PASSWORD = nil"));
+}
+
+#[test]
+fn test_export_scala() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.scala" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.scala");
+    out.assert(predicate::str::contains("object Settings {"));
+    out.assert(predicate::str::contains(
+        "final val key1: String = \"val1\"",
+    ));
+    out.assert(predicate::str::contains(
+        "final val key2: Option[String] = None",
+    ));
+    out.assert(predicate::str::contains("object database {"));
+    out.assert(predicate::str::contains(
+        "final val host: String = \"localhost\"",
+    ));
+    out.assert(predicate::str::contains("final val port: Long = 5432L"));
+    out.assert(predicate::str::contains(
+        "final val password: Option[String] = None",
+    ));
+}
+
+#[test]
+fn test_export_haskell() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.hs" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.hs");
+    out.assert(predicate::str::contains("module Settings where"));
+    out.assert(predicate::str::contains("settings :: Settings"));
+    out.assert(predicate::str::contains("key1 = \"val1\""));
+    out.assert(predicate::str::contains("key2 = Nothing"));
+    out.assert(predicate::str::contains("host = \"localhost\""));
+    out.assert(predicate::str::contains("port = 5432"));
+    out.assert(predicate::str::contains("password = Nothing"));
+}
+
+#[test]
+fn test_export_terraform() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec.export.file]
+"settings.tf" = true
+
+[settings]
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("export")
+        .assert()
+        .success();
+
+    let out = temp.child("settings.tf");
+    out.assert(predicate::str::contains("locals {"));
+    out.assert(predicate::str::contains("key1 = \"val1\""));
+    out.assert(predicate::str::contains("key2 = null"));
+    out.assert(predicate::str::contains("database = {"));
+    out.assert(predicate::str::contains("host = \"localhost\""));
+    out.assert(predicate::str::contains("port = 5432"));
+    out.assert(predicate::str::contains("password = null"));
 }

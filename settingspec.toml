@@ -21,6 +21,17 @@ export.file = {       # Optional: Fine-grained control over what to export
   "settings.lua" = true,
   "settings.js" = true,
   "settings.ts" = true,
+  "settings.rs" = true,
+  "settings.go" = true,
+  "settings.zig" = true,
+  "settings.c" = true,
+  "settings.cpp" = true,
+  "Settings.java" = true,
+  "settings.elm" = true,
+  "settings.rb" = true,
+  "settings.scala" = true,
+  "settings.hs" = true,
+  "settings.tf" = true,
   "settings.env" = true,
   "settings.yaml" = {
     key1 = true,
@@ -40,14 +51,15 @@ export.stdout = "toml"        # Optional: Print in toml format
 export.env = "PREFIX_"        # Optional: Export as environment variables prefixed with this string
 export.stdin = "toml"         # Optional: Pass settings to program stdin in specified format
 
-[settings] # Declare the settings here with syntax: `<key>._.<profile>.<directive> = <value>`
+[settings]  # Declare the settings here with syntax: `<key>._.<profile>.<directive> = <value>`
 key1._.default.val = "val1"  # Default value for all profiles
 key1._.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
 
-# Strictly define different values for different profiles
-key2._.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
-key2._.stage.val = "stage2"
-key2._.prod.env = "KEY2"     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
+key2._ = {  # Strictly define different values for different profiles
+  dev.null = true,       # When SETTINGSPEC_PROFILE=dev, key2=null
+  stage.val = "stage2",
+  prod.env = "KEY2",     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
+}
 
 group1.key1._.default.val = "group1val1"
 group1.key1._.tags = ["tag1", "tag2"] # Optional: Tags for the setting

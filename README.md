@@ -45,10 +45,11 @@ profile.default = "dev"  # Optional: Default profile when the switch is not set
 key1._.default.val = "val1"  # Default value for all profiles
 key1._.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
 
-# Strictly define different values for different profiles
-key2._.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
-key2._.stage.val = "stage2"
-key2._.prod.val = "prod2"
+key2._ = {  # Strictly define different values for different profiles
+  dev.val = "dev2",
+  stage.val = "stage2",
+  prod.val = "prod2",
+}
 ```
 
 Overrides are intentional and kept in plain sight (see `key1`).
@@ -57,7 +58,7 @@ By not defining a default value, you can ensure that you never miss adding a val
 
 ### Language independent
 
-The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, etc., or hard-coded modules such as `.py`, `.js`, `.lua`, etc., write them to disk, print, or pipe them via stdin or even export as environment variables, allowing you to use a single `settingspec.toml` without worrying about the target language.
+The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, `tf`, etc., or hard-coded modules such as `.py`, `.js`, `.ts`, `.lua`, `.rs`, `.go`, `.zig`, `.c`, `.cpp`, `.java`, `.elm`, `.rb`, `.scala`, `.hs`, etc., write them to disk, print, or pipe them via stdin or even export as environment variables, allowing you to use a single `settingspec.toml` without worrying about the target language.
 
 ```toml
 [spec]

@@ -478,7 +478,7 @@ debug_banner._.prod.null = true
 
 When exported:
 
-- JSON, YAML, Python, and Lua use their native null value.
+- JSON, YAML, Python, Lua, Rust, Go, Zig, C, C++, Java, Elm, Ruby, Scala, Haskell, and Terraform use their native null value.
 - TOML and `.env` omit the setting.
 - `null` can only be `true`.
 - `null` cannot be used together with `val` for the same profile.
@@ -737,6 +737,17 @@ SettingSpec determines the output format from the destination file extension.
 | `.ts`                              | TypeScript module | Null becomes `null`.        |
 | `.lua`                             | Lua table         | Null becomes `nil`.         |
 | `.env`, `.env.*`, `env.*`, `*.env` | Shell environment | Null settings are omitted.  |
+| `.rs`                              | Rust module       | Null becomes `None`.        |
+| `.go`                              | Go package        | Null becomes `nil`.         |
+| `.zig`                             | Zig module        | Null becomes `null`.        |
+| `.c`, `.h`                         | C header/source   | Null becomes `NULL`.        |
+| `.cpp`, `.hpp`, `.cc`, `.cxx`      | C++ header/source | Null becomes `nullptr`.     |
+| `.java`                            | Java class        | Null becomes `null`.        |
+| `.elm`                             | Elm module        | Null becomes `Nothing`.     |
+| `.rb`                              | Ruby module       | Null becomes `nil`.         |
+| `.scala`                           | Scala object      | Null becomes `None`.        |
+| `.hs`                              | Haskell module    | Null becomes `Nothing`.     |
+| `.tf`, `.tfvars`                   | Terraform HCL     | Null becomes `null`.        |
 
 ---
 
