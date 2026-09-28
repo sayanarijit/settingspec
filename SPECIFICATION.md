@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.6  
+**Version:** 0.7  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** <https://github.com/sayanarijit/settingspec>
@@ -43,7 +43,10 @@ The words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOU
 - **Profile:** A named environment or operating mode, such as `dev`, `stage`, or `prod`.
 - **Default profile:** The `default` profile. It provides values that apply to all profiles unless a profile overrides them.
 - **Setting key:** A setting name that can contain dot-separated parts, such as `database.host`.
-- **Directive:** The final part of a setting declaration. Supported directives are `val`, `env`, `null`, and `tags`.
+- **Separator:** The reserved `_` component that separates the setting key from the rest of a declaration.
+- **Profile declaration:** A declaration of the form `{key}._.{profile}.{directive}`.
+- **Directive:** The final part of a profile declaration. Supported directives are `val`, `env`, and `null`.
+- **Tags declaration:** A declaration of the form `{key}._.tags`. It attaches tags to a setting regardless of profile.
 - **Active profile:** The profile selected for the current run.
 - **Export target:** A file or standard output where resolved settings are written.
 
@@ -66,17 +69,19 @@ The file has two top-level sections:
 
 ### 2.2 Setting names
 
-SettingSpec uses dot-separated keys to represent settings, profiles, and directives.
+SettingSpec uses dot-separated keys to represent settings, profiles, and directives. The reserved `_` component separates the setting key from the rest of the declaration.
 
 ```toml
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
+key1._.tags = ["tag1"]
 ```
 
-The general form is:
+The general forms are:
 
 ```text
-{key}.{profile}.{directive} = {value}
+{key}._.{profile}.{directive} = {value}
+{key}._.tags = [{tag}, ...]
 ```
 
 ---
@@ -132,8 +137,8 @@ When `profile.options` is set:
 1. The active profile MUST be in the list.
 2. Every profile used in `[settings]` MUST be in the list or be `default`.
 3. `default` MUST NOT be included in `profile.options`.
-4. Every setting MUST either have a `default` declaration or have a declaration for every profile in `profile.options`.
-5. Profile names MUST NOT be `val`, `env`, `null`, or `tags`.
+4. Every setting MUST either have a `default` profile declaration or have a declaration for every profile in `profile.options`. A tags declaration alone does not count as a profile declaration.
+5. Profile names MUST NOT be `default` or `tags`.
 
 If any of these rules fail, configuration loading MUST stop with an error.
 
@@ -346,53 +351,71 @@ The `[settings]` section defines setting values, environment variables, tags, an
 
 ### 4.1 Declaration format
 
-Each setting uses this form:
+Each setting is defined by one or more declarations. There are two kinds.
+
+A **profile declaration** provides a value for a profile:
 
 ```text
-{key}.{profile}.{directive} = {value}
+{key}._.{profile}.{directive} = {value}
+```
+
+A **tags declaration** attaches tags to a setting:
+
+```text
+{key}._.tags = [{tag}, ...]
 ```
 
 For example:
 
 ```toml
-app.name.default.val = "MyApp"
-app.port.dev.val = 8080
-app.port.prod.val = 80
+app.name._.default.val = "MyApp"
+app.port._.dev.val = 8080
+app.port._.prod.val = 80
+app.port._.tags = ["network"]
 ```
 
-The three parts are:
+The parts are:
 
-- `{key}` — the setting name, such as `database.host`.
+- `{key}` — the setting name, such as `database.host`. It can contain dot-separated parts.
+- `_` — the reserved separator between the key and the rest of the declaration.
 - `{profile}` — a profile from `profile.options`, or `default`.
-- `{directive}` — `val`, `env`, `null`, or `tags`.
+- `{directive}` — `val`, `env`, or `null`.
 - `{value}` — the value for that directive.
 
-SettingSpec reads a dotted declaration by position:
+#### Parsing declarations
 
-1. The last part is the directive.
-2. The part before it is the profile.
-3. Everything before those two parts is the setting key.
+SettingSpec reads a dotted declaration by splitting it at the `_` component:
+
+1. Everything before the `_` component is the setting key. It MUST NOT be empty.
+2. Everything after the `_` component MUST be one of:
+   - the single component `tags`, which makes it a tags declaration, or
+   - exactly two components, `{profile}.{directive}`, which makes it a profile declaration.
+3. A declaration with no `_` component, more than one `_` component, or any other shape after the `_` component is malformed.
+
+Because the separator is explicit, setting keys MAY contain parts named `val`, `env`, `null`, or `tags`. For example, `group1.env._.default.val` declares the setting `group1.env`.
 
 ### 4.1.1 Reserved names
 
-The names `val`, `env`, `null`, and `tags` are reserved.
+The name `_` is reserved as the separator.
 
-They MUST NOT be used:
+- It MUST NOT be used as any part of a setting key.
 
-- In any part of a setting key.
-- As a profile name.
+The names `default` and `tags` are reserved in the profile position.
+
+- `default` is the default profile. It MUST NOT be listed in `profile.options`.
+- `tags` marks a tags declaration. It MUST NOT be used as a profile name.
 
 For example, these are invalid:
 
 ```toml
-env.default.val = "x"
-group1.tags.prod.val = "y"
-val.default.env = "Z"
+_.default.val = "x"                 # empty key
+key1.default.val = "x"              # missing `_` separator
+key1._.default._.val = "y"          # more than one `_` component
+key1._.tags.val = "z"               # `tags` used as a profile
+key1._.default = "w"                # missing directive
 ```
 
-This rule prevents dotted names from being interpreted incorrectly.
-
-SettingSpec MUST reject these conflicts during configuration validation and report the offending name.
+SettingSpec MUST reject these during configuration validation and report the offending declaration.
 
 ### 4.2 Directives
 
@@ -413,9 +436,9 @@ Supported values include:
 Example:
 
 ```toml
-app.name.default.val = "MyApp"
-app.port.dev.val = 8080
-app.port.prod.val = 80
+app.name._.default.val = "MyApp"
+app.port._.dev.val = 8080
+app.port._.prod.val = 80
 ```
 
 #### `env`
@@ -423,7 +446,7 @@ app.port.prod.val = 80
 Gets the value from an environment variable.
 
 ```toml
-database.password.default.env = "DB_PASSWORD"
+database.password._.default.env = "DB_PASSWORD"
 ```
 
 SettingSpec reads `DB_PASSWORD` when the setting is resolved. This includes variables loaded from `spec.envfile`.
@@ -433,9 +456,9 @@ SettingSpec reads `DB_PASSWORD` when the setting is resolved. This includes vari
 A setting can provide an environment variable plus a fallback value:
 
 ```toml
-secret2.default.val = "defaultvalue"
-secret2.default.env = "SECRET2"
-secret2.prod.env = "PRODSECRET"
+secret2._.default.val = "defaultvalue"
+secret2._.default.env = "SECRET2"
+secret2._.prod.env = "PRODSECRET"
 ```
 
 The rules are:
@@ -449,8 +472,8 @@ The rules are:
 Marks a setting as unset for a profile.
 
 ```toml
-debug_banner.default.val = "My App BETA 0.0.1"
-debug_banner.prod.null = true
+debug_banner._.default.val = "My App BETA 0.0.1"
+debug_banner._.prod.null = true
 ```
 
 When exported:
@@ -460,13 +483,20 @@ When exported:
 - `null` can only be `true`.
 - `null` cannot be used together with `val` for the same profile.
 
-#### `tags`
+### 4.3 Tags
 
-Adds metadata tags to a setting.
+Tags add metadata to a setting. They are declared after the key, not per profile, so they apply to the setting in every profile.
 
 ```toml
-api_key.default.tags = ["sensitive", "auth"]
+api_key._.default.env = "API_KEY"
+api_key._.tags = ["sensitive", "auth"]
 ```
+
+The rules are:
+
+1. The value MUST be an array of strings.
+2. A setting MAY have at most one tags declaration.
+3. A tags declaration does not define a value. A setting that has only a tags declaration and no profile declarations is treated as having no declaration for resolution purposes (see section 5.2).
 
 Tags are not exported as setting values. They can be used when selecting settings for an export, for example with `#auth`.
 
@@ -518,7 +548,7 @@ flowchart TD
 
 For the same rules in numbered form:
 
-1. If `K` has a declaration for `P`:
+1. If `K` has a profile declaration for `P`:
    - If its `env` variable exists, use that value.
    - Otherwise, use its `val` or `null` value if one exists.
 2. If there is no declaration for `P`, check `default`:
@@ -528,7 +558,9 @@ For the same rules in numbered form:
    - With `profile.options`, this is a profile-coverage error.
    - Without `profile.options`, the key is omitted.
 
-The flow above assumes that the setting key, profile, and directive have already been identified correctly. Reserved names such as `val`, `env`, `null`, and `tags` must be rejected during validation.
+Tags declarations are not profile declarations and play no part in this flow.
+
+The flow above assumes that each declaration has already been parsed into its key, profile, and directive. Malformed declarations and reserved names must be rejected during validation.
 
 Environment files and their decryption are completed before this process starts, so their variables are available during resolution.
 
@@ -540,9 +572,9 @@ It checks that:
 
 1. Every profile declared in settings belongs to the options declared in spec.
 2. Every setting has complete profile coverage when strict profile validation is enabled.
-3. Every declaration uses valid directives.
-4. No setting key or profile name uses a reserved directive name.
-5. Envionment values for the active profile are present if required.
+3. Every declaration is well-formed and uses a valid directive (`val`, `env`, or `null`) or is a valid tags declaration.
+4. No setting key contains the reserved `_` component, and no profile name is `default` or `tags` in `profile.options`.
+5. Environment values for the active profile are present if required.
 
 ---
 
@@ -740,7 +772,7 @@ settingspec check [OPTIONS]
 It checks:
 
 - TOML syntax.
-- Reserved keywords in setting names and profiles.
+- Malformed declarations, the reserved `_` separator in setting keys, and reserved profile names (`default`, `tags`).
 - Profile completeness.
 - Required environment variables for active profile.
 - Decryption identities for encrypted environment files used by the active profile.

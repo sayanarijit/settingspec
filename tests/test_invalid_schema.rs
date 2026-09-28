@@ -16,7 +16,7 @@ profile.options = ["dev"]
 foo = "bar"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -41,7 +41,7 @@ profile.options = ["dev"]
 unknown_field = 123
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -66,7 +66,7 @@ options = ["dev"]
 optinos = ["dev"]
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -90,7 +90,7 @@ fn test_invalid_type_in_spec_profile_options_fails() {
 options = "dev"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -115,7 +115,7 @@ keep = false
 unknown_export = 42
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -139,7 +139,7 @@ fn test_invalid_type_in_spec_export_keep_fails() {
 keep = "false"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -163,7 +163,7 @@ fn test_invalid_type_in_spec_export_mode_fails() {
 mode = "0600"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -187,7 +187,7 @@ fn test_invalid_type_in_spec_envfile_fails() {
 default = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -211,7 +211,7 @@ fn test_invalid_type_in_spec_export_file_target_fails() {
 "settings.toml" = 123
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -231,7 +231,7 @@ fn test_invalid_type_in_spec_export_env_fails() {
 env = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -254,8 +254,8 @@ fn test_invalid_directive_type_env_fails() {
         .write_str(
             r#"
 [settings]
-key.default.val = "value"
-key.default.env = 999
+key._.default.val = "value"
+key._.default.env = 999
 "#,
         )
         .unwrap();
@@ -276,8 +276,8 @@ fn test_invalid_directive_type_tags_fails() {
         .write_str(
             r#"
 [settings]
-key.default.val = "value"
-key.default.tags = "not_an_array"
+key._.default.val = "value"
+key._.tags = "not_an_array"
 "#,
         )
         .unwrap();
@@ -301,7 +301,7 @@ fn test_invalid_type_in_spec_export_stdin_fails() {
 stdin = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -327,7 +327,7 @@ fn test_invalid_type_in_spec_export_skip_gitignore_fails() {
 skip_gitignore = "not_a_bool"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -351,7 +351,7 @@ fn test_skip_gitignore_at_spec_root_is_rejected() {
 skip_gitignore = true
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -375,7 +375,7 @@ fn test_invalid_type_in_spec_export_stdout_fails() {
 stdout = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -401,7 +401,7 @@ fn test_unknown_field_in_spec_decryption_fails() {
 unknown = "value"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -425,7 +425,7 @@ fn test_unknown_field_in_spec_decryption_key_fails() {
 unknown = "value"
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -449,7 +449,7 @@ fn test_invalid_type_in_spec_decryption_key_path_fails() {
 path = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();
@@ -475,7 +475,7 @@ fn test_invalid_type_in_spec_decryption_key_env_fails() {
 env = 12345
 
 [settings]
-key.default.val = "value"
+key._.default.val = "value"
 "#,
         )
         .unwrap();

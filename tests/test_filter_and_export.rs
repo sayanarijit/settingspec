@@ -13,8 +13,8 @@ fn test_boolean_filter_true_exports_all() {
 "all_settings.toml" = true
 
 [settings]
-k1.default.val = "v1"
-k2.default.val = "v2"
+k1._.default.val = "v1"
+k2._.default.val = "v2"
 "#,
         )
         .unwrap();
@@ -43,7 +43,7 @@ fn test_boolean_filter_false_disables_export() {
 "enabled.toml" = true
 
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();
@@ -67,7 +67,7 @@ fn test_default_export_target_when_omitted() {
         .write_str(
             r#"
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();
@@ -94,7 +94,7 @@ fn test_default_export_target_omitted_when_export_env_specified() {
 export.env = true
 
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();
@@ -116,7 +116,7 @@ k1.default.val = "v1"
 env = "PREFIX_"
 
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();
@@ -142,11 +142,11 @@ fn test_group_and_subgroup_inclusion() {
 "target.toml" = { group1 = true, "group2.subgroup1" = true }
 
 [settings]
-group1.k1.default.val = "g1_k1"
-group1.k2.default.val = "g1_k2"
-group2.subgroup1.k1.default.val = "g2_sg1_k1"
-group2.subgroup2.k1.default.val = "g2_sg2_k1"
-other.k1.default.val = "other_val"
+group1.k1._.default.val = "g1_k1"
+group1.k2._.default.val = "g1_k2"
+group2.subgroup1.k1._.default.val = "g2_sg1_k1"
+group2.subgroup2.k1._.default.val = "g2_sg2_k1"
+other.k1._.default.val = "other_val"
 "#,
         )
         .unwrap();
@@ -177,8 +177,8 @@ fn test_exact_key_inclusion() {
 "target.toml" = { "group.subgroup.k1" = true }
 
 [settings]
-group.subgroup.k1.default.val = "included_k1"
-group.subgroup.k2.default.val = "excluded_k2"
+group.subgroup.k1._.default.val = "included_k1"
+group.subgroup.k2._.default.val = "excluded_k2"
 "#,
         )
         .unwrap();
@@ -205,9 +205,9 @@ fn test_subgroup_exclusion_implicit_parent_inclusion() {
 "target.toml" = { "group3.subgroup" = false }
 
 [settings]
-group3.subgroup.k1.default.val = "excluded_subgroup_val"
-group3.other_sub.k1.default.val = "included_other_val"
-unrelated.k1.default.val = "unrelated_val"
+group3.subgroup.k1._.default.val = "excluded_subgroup_val"
+group3.other_sub.k1._.default.val = "included_other_val"
+unrelated.k1._.default.val = "unrelated_val"
 "#,
         )
         .unwrap();
@@ -235,8 +235,8 @@ fn test_key_exclusion_implicit_parent_inclusion() {
 "target.toml" = { "group2.subgroup2.k2" = false }
 
 [settings]
-group2.subgroup2.k1.default.val = "included_k1"
-group2.subgroup2.k2.default.val = "excluded_k2"
+group2.subgroup2.k1._.default.val = "included_k1"
+group2.subgroup2.k2._.default.val = "excluded_k2"
 "#,
         )
         .unwrap();
@@ -264,9 +264,9 @@ fn test_mixed_inclusion_and_exclusion_in_same_scope() {
 "group2.subgroup2.k2" = false
 
 [settings]
-group2.subgroup2.k1.default.val = "included_k1"
-group2.subgroup2.k2.default.val = "excluded_k2"
-group2.subgroup2.k3.default.val = "unmentioned_k3"
+group2.subgroup2.k1._.default.val = "included_k1"
+group2.subgroup2.k2._.default.val = "excluded_k2"
+group2.subgroup2.k3._.default.val = "unmentioned_k3"
 "#,
         )
         .unwrap();
@@ -296,14 +296,14 @@ group1 = true
 "#special" = true
 
 [settings]
-group1.public.default.val = "public_val"
-group1.secret.default.val = "secret_val"
-group1.secret.default.tags = ["sensitive"]
+group1.public._.default.val = "public_val"
+group1.secret._.default.val = "secret_val"
+group1.secret._.tags = ["sensitive"]
 
-group2.tagged.default.val = "tagged_special_val"
-group2.tagged.default.tags = ["special"]
+group2.tagged._.default.val = "tagged_special_val"
+group2.tagged._.tags = ["special"]
 
-group2.untagged.default.val = "untagged_val"
+group2.untagged._.default.val = "untagged_val"
 "##,
         )
         .unwrap();
@@ -335,11 +335,11 @@ group1 = false
 "#draft" = false
 
 [settings]
-group1.k1.default.val = "g1_val"
-group2.k1.default.val = "g2_val"
-group3.draft.default.val = "draft_val"
-group3.draft.default.tags = ["draft"]
-group3.published.default.val = "pub_val"
+group1.k1._.default.val = "g1_val"
+group2.k1._.default.val = "g2_val"
+group3.draft._.default.val = "draft_val"
+group3.draft._.tags = ["draft"]
+group3.published._.default.val = "pub_val"
 "##,
         )
         .unwrap();
@@ -368,7 +368,7 @@ fn test_default_export_target_omitted_when_export_stdin_specified() {
 export.stdin = true
 
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();
@@ -390,7 +390,7 @@ k1.default.val = "v1"
 stdin = "json"
 
 [settings]
-k1.default.val = "v1"
+k1._.default.val = "v1"
 "#,
         )
         .unwrap();

@@ -1,10 +1,10 @@
 use crate::error::{Result, SettingSpecError};
-use crate::model::{ProfileConfig, is_reserved_directive_keyword};
+use crate::model::{ProfileConfig, is_reserved_profile_name};
 
 /// Validates a trimmed, non-empty profile name against the configured
 /// options (if any are configured; an empty list means any name is valid).
 fn validate_profile(name: String, options: &[String]) -> Result<Option<String>> {
-    if is_reserved_directive_keyword(&name) {
+    if is_reserved_profile_name(&name) {
         return Err(SettingSpecError::ReservedKeywordConflict(name));
     }
     if !options.is_empty() && !options.contains(&name) {

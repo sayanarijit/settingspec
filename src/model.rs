@@ -3,8 +3,12 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 use toml::Value as TomlValue;
 
-pub fn is_reserved_directive_keyword(name: &str) -> bool {
-    matches!(name, "val" | "env" | "null" | "tags")
+pub fn is_reserved_profile_name(name: &str) -> bool {
+    matches!(name, "default" | "tags")
+}
+
+pub fn is_valid_directive(name: &str) -> bool {
+    matches!(name, "val" | "env" | "null")
 }
 
 fn default_profile_key() -> String {
@@ -437,7 +441,7 @@ pub struct SpecConfig {
     pub decryption: DecryptionConfig,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Serialize, Deserialize)] // Never Debug sensitive data
 #[serde(deny_unknown_fields)]
 pub struct ProfileDeclaration {
     #[serde(default)]
@@ -446,13 +450,13 @@ pub struct ProfileDeclaration {
     pub env: Option<String>,
     #[serde(default)]
     pub null: bool,
-    #[serde(default)]
-    pub tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)] // Never Debug sensitive data
 pub struct Setting {
     pub key: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
     pub profiles: BTreeMap<String, ProfileDeclaration>,
 }
 
@@ -469,7 +473,7 @@ pub struct ResolvedSetting {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct SettingSpecDocument {
     pub spec: SpecConfig,
     pub settings: BTreeMap<String, Setting>,

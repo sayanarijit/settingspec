@@ -13,10 +13,10 @@ fn test_export_toml_omits_nulls() {
 "out.toml" = true
 
 [settings]
-active_feature.default.val = "feature_1"
-nullable_feature.default.null = true
-db.host.default.val = "127.0.0.1"
-db.password.default.null = true
+active_feature._.default.val = "feature_1"
+nullable_feature._.default.null = true
+db.host._.default.val = "127.0.0.1"
+db.password._.default.null = true
 "#,
         )
         .unwrap();
@@ -45,10 +45,10 @@ fn test_export_json_serializes_nulls() {
 "out.json" = true
 
 [settings]
-key1.default.val = "val1"
-key2.default.null = true
-database.host.default.val = "localhost"
-database.secret.default.null = true
+key1._.default.val = "val1"
+key2._.default.null = true
+database.host._.default.val = "localhost"
+database.secret._.default.null = true
 "#,
         )
         .unwrap();
@@ -78,9 +78,9 @@ fn test_export_yaml_and_yml() {
 "out.yml" = true
 
 [settings]
-service.name.default.val = "auth-service"
-service.port.default.val = 3000
-service.fallback.default.null = true
+service.name._.default.val = "auth-service"
+service.port._.default.val = 3000
+service.fallback._.default.null = true
 "#,
         )
         .unwrap();
@@ -110,11 +110,11 @@ fn test_export_python_nested_classes_and_none() {
 "settings.py" = true
 
 [settings]
-top_key.default.val = "top_val"
-top_null.default.null = true
-database.host.default.val = "localhost"
-database.port.default.val = 5432
-database.password.default.null = true
+top_key._.default.val = "top_val"
+top_null._.default.null = true
+database.host._.default.val = "localhost"
+database.port._.default.val = 5432
+database.password._.default.null = true
 "#,
         )
         .unwrap();
@@ -146,8 +146,8 @@ fn test_export_javascript_and_mjs() {
 "settings.mjs" = true
 
 [settings]
-app.name.default.val = "demo"
-app.debug.default.null = true
+app.name._.default.val = "demo"
+app.debug._.default.null = true
 "#,
         )
         .unwrap();
@@ -177,9 +177,9 @@ fn test_export_typescript_interfaces_and_default_export() {
 "settings.ts" = true
 
 [settings]
-app.name.default.val = "demo"
-app.port.default.val = 8080
-app.debug.default.null = true
+app.name._.default.val = "demo"
+app.port._.default.val = 8080
+app.debug._.default.null = true
 "#,
         )
         .unwrap();
@@ -209,10 +209,10 @@ fn test_export_lua_table_and_nil() {
 "settings.lua" = true
 
 [settings]
-key1.default.val = "val1"
-key2.default.null = true
-db.host.default.val = "localhost"
-db.port.default.val = 5432
+key1._.default.val = "val1"
+key2._.default.null = true
+db.host._.default.val = "localhost"
+db.port._.default.val = 5432
 "#,
         )
         .unwrap();
@@ -242,8 +242,8 @@ fn test_export_stdout_toml_json_yaml_env() {
 stdout = "json"
 
 [settings]
-api.url.default.val = "https://api.example.com"
-api.timeout.default.val = 30
+api.url._.default.val = "https://api.example.com"
+api.timeout._.default.val = 30
 "#,
         )
         .unwrap();
@@ -266,8 +266,8 @@ api.timeout.default.val = 30
 stdout = "env"
 
 [settings]
-api.url.default.val = "https://api.example.com"
-api.timeout.default.val = 30
+api.url._.default.val = "https://api.example.com"
+api.timeout._.default.val = 30
 "#,
         )
         .unwrap();
@@ -295,9 +295,9 @@ fn test_export_file_env_format() {
 "env.prod" = true
 
 [settings]
-app.name.default.val = "MyApp"
-app.port.default.val = 8080
-secret.default.null = true
+app.name._.default.val = "MyApp"
+app.port._.default.val = 8080
+secret._.default.null = true
 "#,
         )
         .unwrap();
@@ -344,7 +344,7 @@ fn test_export_file_unrecognizable_format_fails() {
 "aaa" = true
 
 [settings]
-app.name.default.val = "MyApp"
+app.name._.default.val = "MyApp"
 "#,
         )
         .unwrap();
@@ -364,7 +364,7 @@ app.name.default.val = "MyApp"
 "settings.unknown" = true
 
 [settings]
-app.name.default.val = "MyApp"
+app.name._.default.val = "MyApp"
 "#,
         )
         .unwrap();

@@ -5,8 +5,9 @@ pub enum SettingSpecError {
     ConfigNotFound,
     InvalidToml(String),
     MissingSettingsSection,
-    ReservedProfileInOptions,
+    ReservedProfileInOptions(String),
     ReservedKeywordConflict(String),
+    InvalidDeclaration(String, String),
     UnknownProfileInSettings(String),
     ActiveProfileNotInOptions(String),
     NoProfileSelected,
@@ -14,7 +15,8 @@ pub enum SettingSpecError {
     InvalidDirective(String, String, String), // setting key, profile, directive
     NullCoexistsWithVal(String, String),  // setting key, profile
     InvalidNullValue(String, String),     // setting key, profile
-    InvalidTagsValue(String, String),     // setting key, profile
+    InvalidTagsValue(String),             // setting key
+    DuplicateTags(String),                // setting key
     InvalidEnvValue(String, String),      // setting key, profile
     MissingRequiredEnvVar(String, String), // setting key, env var name
     RequiredValueMissing(String),         // setting key
@@ -37,15 +39,17 @@ impl fmt::Display for SettingSpecError {
                 f,
                 "Missing required '[settings]' section in settingspec.toml"
             ),
-            Self::ReservedProfileInOptions => write!(
+            Self::ReservedProfileInOptions(name) => write!(
                 f,
-                "Reserved profile identifier 'default' MUST NOT be in spec.profile.options"
+                "Reserved profile identifier '{}' MUST NOT be in spec.profile.options",
+                name
             ),
-            Self::ReservedKeywordConflict(seg) => write!(
-                f,
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                seg
-            ),
+            Self::ReservedKeywordConflict(seg) => {
+                write!(f, "Reserved profile name '{}' cannot be used", seg)
+            }
+            Self::InvalidDeclaration(decl, reason) => {
+                write!(f, "Invalid setting declaration '{}': {}", decl, reason)
+            }
             Self::UnknownProfileInSettings(p) => write!(
                 f,
                 "Unknown profile '{}' used in [settings] (not in spec.profile.options)",
@@ -80,14 +84,17 @@ impl fmt::Display for SettingSpecError {
                 "Directive 'null' must be true for setting '{}' in profile '{}'",
                 k, p
             ),
-            Self::InvalidTagsValue(k, p) => write!(
+            Self::InvalidTagsValue(k) => write!(
                 f,
-                "Directive 'tags' must be an array of strings for setting '{}' in profile '{}'",
-                k, p
+                "Directive 'tags' for setting '{}': expected a sequence of strings",
+                k
             ),
+            Self::DuplicateTags(k) => {
+                write!(f, "Setting '{}' has more than one tags declaration", k)
+            }
             Self::InvalidEnvValue(k, p) => write!(
                 f,
-                "Directive 'env' must be a string for setting '{}' in profile '{}'",
+                "Directive 'env' for setting '{}' in profile '{}': expected a string",
                 k, p
             ),
             Self::MissingRequiredEnvVar(k, env) => write!(

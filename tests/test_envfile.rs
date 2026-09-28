@@ -15,7 +15,7 @@ profile.default = "dev"
 envfile.default = ".env"
 
 [settings]
-secret.default.env = "MY_SECRET"
+secret._.default.env = "MY_SECRET"
 "#,
         )
         .unwrap();
@@ -49,7 +49,7 @@ envfile.default = ".env"
 envfile.prod = ".env.prod"
 
 [settings]
-db_pass.default.env = "DB_PASSWORD"
+db_pass._.default.env = "DB_PASSWORD"
 "#,
         )
         .unwrap();
@@ -84,7 +84,7 @@ profile.default = "prod"
 envfile.prod = "-"
 
 [settings]
-api_token.default.env = "API_TOKEN"
+api_token._.default.env = "API_TOKEN"
 "#,
         )
         .unwrap();
@@ -113,7 +113,7 @@ fn test_missing_envfile_fails_with_error() {
 envfile.default = "non_existent.env"
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -139,7 +139,7 @@ fn test_sourced_envfile_passed_to_child_command_in_run() {
 envfile.default = ".env"
 
 [settings]
-dummy.default.val = "1"
+dummy._.default.val = "1"
 "#,
         )
         .unwrap();
@@ -183,7 +183,7 @@ profile.default = "dev"
 envfile.default = ".env.age"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -223,7 +223,7 @@ profile.default = "dev"
 envfile.default = ".env.age"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -266,7 +266,7 @@ fn test_age_decryption_with_env_var_colon_delimited_paths() {
 envfile.default = ".env.age"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -314,7 +314,7 @@ envfile.default = ".env.age"
 decryption.key.path = "key.txt"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -361,7 +361,7 @@ envfile.default = ".env.age"
 decryption.key.path = "keys"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -403,7 +403,7 @@ envfile.default = ".env.age"
 decryption.key.path = ["nonexistent_key.txt", "actual_key.txt"]
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -445,7 +445,7 @@ envfile.default = ".env"
 decryption.key.path = "key.txt"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -486,7 +486,7 @@ profile.default = "prod"
 envfile.prod = "-"
 
 [settings]
-secret.default.env = "STDIN_SECRET"
+secret._.default.env = "STDIN_SECRET"
 "#,
         )
         .unwrap();
@@ -531,7 +531,7 @@ envfile.default = ".env.age"
 decryption.key.path = "valid_key.txt"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -574,7 +574,7 @@ envfile.default = ".env.age"
 decryption.key.path = "valid_key.txt"
 
 [settings]
-secret.default.env = "AGE_SECRET"
+secret._.default.env = "AGE_SECRET"
 "#,
         )
         .unwrap();
@@ -606,7 +606,7 @@ profile.default = "stage"
 envfile.stage = "stage_secrets.age"
 
 [settings]
-secret.default.val = "default_val"
+secret._.default.val = "default_val"
 "#,
         )
         .unwrap();
@@ -649,7 +649,7 @@ envfile.stage = ".env.stage.age"
 decryption.key.path = "key.txt"
 
 [settings]
-key.default.env = "STAGE_VAR"
+key._.default.env = "STAGE_VAR"
 "#,
         )
         .unwrap();
@@ -692,7 +692,7 @@ envfile.default = ".env.age"
 decryption.key.path = "~/.ssh/"
 
 [settings]
-secret.default.env = "SSH_SECRET"
+secret._.default.env = "SSH_SECRET"
 "#,
         )
         .unwrap();
@@ -744,7 +744,7 @@ envfile.default = ".env.age"
 decryption.key.path = "keys"
 
 [settings]
-secret.default.env = "SECRET"
+secret._.default.env = "SECRET"
 "#,
         )
         .unwrap();
@@ -783,8 +783,8 @@ envfile.default = ".env"
 envfile.prod = ".env.prod"
 
 [settings]
-shared.default.env = "VAR_SHARED"
-default_only.default.env = "VAR_DEFAULT_ONLY"
+shared._.default.env = "VAR_SHARED"
+default_only._.default.env = "VAR_DEFAULT_ONLY"
 "#,
         )
         .unwrap();
@@ -821,8 +821,8 @@ profile.default = "dev"
 envfile.default = ".env"
 
 [settings]
-key.prod.env = "MY_VAR"
-key.dev.val = "dev_val"
+key._.prod.env = "MY_VAR"
+key._.dev.val = "dev_val"
 "#,
         )
         .unwrap();
@@ -854,8 +854,8 @@ envfile.default = ".env"
 envfile.prod = ".env.prod"
 
 [settings]
-key.prod.env = "MY_VAR"
-key.dev.val = "dev_val"
+key._.prod.env = "MY_VAR"
+key._.dev.val = "dev_val"
 "#,
         )
         .unwrap();

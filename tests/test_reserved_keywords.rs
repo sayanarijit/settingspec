@@ -3,42 +3,15 @@ use assert_fs::prelude::*;
 use predicates::prelude::*;
 
 #[test]
-fn test_reserved_keywords_as_standalone_setting_keys_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
-[settings]
-{}.default.val = "value"
-"#,
-                kw
-            ))
-            .unwrap();
-
-        let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
-    }
-}
-
-#[test]
 fn test_specification_examples_rejected() {
-    // 1. env.default.val = "x"
+    // 1. _.default.val = "x" (empty key)
     let temp1 = assert_fs::TempDir::new().unwrap();
     temp1
         .child("settingspec.toml")
         .write_str(
             r#"
 [settings]
-env.default.val = "x"
+_.default.val = "x"
 "#,
         )
         .unwrap();
@@ -47,18 +20,16 @@ env.default.val = "x"
         .arg("check")
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
-            "Reserved directive keyword 'env' cannot be used as a setting key segment or profile name",
-        ));
+        .stderr(predicate::str::contains("_.default.val"));
 
-    // 2. group1.tags.prod.val = "y"
+    // 2. key1.default.val = "x" (missing `_` separator)
     let temp2 = assert_fs::TempDir::new().unwrap();
     temp2
         .child("settingspec.toml")
         .write_str(
             r#"
 [settings]
-group1.tags.prod.val = "y"
+key1.default.val = "x"
 "#,
         )
         .unwrap();
@@ -67,18 +38,16 @@ group1.tags.prod.val = "y"
         .arg("check")
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
-            "Reserved directive keyword 'tags' cannot be used as a setting key segment or profile name",
-        ));
+        .stderr(predicate::str::contains("key1.default.val"));
 
-    // 3. val.default.env = "Z"
+    // 3. key1._.default._.val = "y" (more than one `_` component)
     let temp3 = assert_fs::TempDir::new().unwrap();
     temp3
         .child("settingspec.toml")
         .write_str(
             r#"
 [settings]
-val.default.env = "Z"
+key1._.default._.val = "y"
 "#,
         )
         .unwrap();
@@ -87,131 +56,144 @@ val.default.env = "Z"
         .arg("check")
         .assert()
         .failure()
+        .stderr(predicate::str::contains("key1._.default._.val"));
+
+    // 4. key1._.tags.val = "z" (`tags` used as a profile)
+    let temp4 = assert_fs::TempDir::new().unwrap();
+    temp4
+        .child("settingspec.toml")
+        .write_str(
+            r#"
+[settings]
+key1._.tags.val = "z"
+"#,
+        )
+        .unwrap();
+    let mut cmd4 = Command::cargo_bin("settingspec").unwrap();
+    cmd4.current_dir(temp4.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("key1._.tags.val"));
+
+    // 5. key1._.default = "w" (missing directive)
+    let temp5 = assert_fs::TempDir::new().unwrap();
+    temp5
+        .child("settingspec.toml")
+        .write_str(
+            r#"
+[settings]
+key1._.default = "w"
+"#,
+        )
+        .unwrap();
+    let mut cmd5 = Command::cargo_bin("settingspec").unwrap();
+    cmd5.current_dir(temp5.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("key1._.default"));
+}
+
+#[test]
+fn test_setting_keys_may_contain_directive_words() {
+    for kw in ["val", "env", "null", "tags"] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        let config = temp.child("settingspec.toml");
+        config
+            .write_str(&format!(
+                r#"
+[settings]
+{}._.default.val = "value"
+app.{}.host._.default.val = "db.example.com"
+"#,
+                kw, kw
+            ))
+            .unwrap();
+
+        let mut cmd = Command::cargo_bin("settingspec").unwrap();
+        cmd.current_dir(temp.path()).arg("check").assert().success();
+    }
+}
+
+#[test]
+fn test_setting_keys_with_reserved_underscore_component_rejected() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[settings]
+"app._.host"._.default.val = "x"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("app._.host"));
+}
+
+#[test]
+fn test_reserved_profile_tags_in_profile_options_rejected() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
+[spec]
+profile.options = ["dev", "tags"]
+profile.default = "dev"
+
+[settings]
+key1._.default.val = "v1"
+"#,
+        )
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
         .stderr(predicate::str::contains(
-            "Reserved directive keyword 'val' cannot be used as a setting key segment or profile name",
+            "Reserved profile identifier 'tags' MUST NOT be in spec.profile.options",
         ));
 }
 
 #[test]
-fn test_reserved_keywords_as_intermediate_key_segments_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
-[settings]
-app.{}.host.default.val = "db.example.com"
-"#,
-                kw
-            ))
-            .unwrap();
-
-        let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
-    }
-}
-
-#[test]
-fn test_reserved_keywords_as_profile_name_without_options_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
-[settings]
-database.host.{}.val = "localhost"
-"#,
-                kw
-            ))
-            .unwrap();
-
-        let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
-    }
-}
-
-#[test]
-fn test_reserved_keywords_as_profile_name_with_options_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
+fn test_reserved_profile_default_in_profile_options_rejected() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(
+            r#"
 [spec]
-profile.options = ["dev", "prod"]
+profile.options = ["dev", "default"]
 profile.default = "dev"
 
 [settings]
-database.host.default.val = "localhost"
-database.host.{}.val = "remote"
+key1._.default.val = "v1"
 "#,
-                kw
-            ))
-            .unwrap();
+        )
+        .unwrap();
 
-        let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
-    }
-}
-
-#[test]
-fn test_reserved_keyword_in_profile_options_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
-[spec]
-profile.options = ["dev", "{}"]
-profile.default = "dev"
-
-[settings]
-key1.default.val = "v1"
-"#,
-                kw
-            ))
-            .unwrap();
-
-        let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
-    }
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Reserved profile identifier 'default' MUST NOT be in spec.profile.options",
+        ));
 }
 
 #[test]
 fn test_reserved_keyword_in_profile_default_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
+    for kw in ["default", "tags"] {
         let temp = assert_fs::TempDir::new().unwrap();
         let config = temp.child("settingspec.toml");
         config
@@ -221,7 +203,7 @@ fn test_reserved_keyword_in_profile_default_rejected() {
 profile.default = "{}"
 
 [settings]
-key1.default.val = "v1"
+key1._.default.val = "v1"
 "#,
                 kw
             ))
@@ -233,7 +215,7 @@ key1.default.val = "v1"
             .assert()
             .failure()
             .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
+                "Reserved profile name '{}' cannot be used",
                 kw
             )));
     }
@@ -241,14 +223,14 @@ key1.default.val = "v1"
 
 #[test]
 fn test_reserved_keyword_as_active_profile_via_env_var_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
+    for kw in ["default", "tags"] {
         let temp = assert_fs::TempDir::new().unwrap();
         let config = temp.child("settingspec.toml");
         config
             .write_str(
                 r#"
 [settings]
-key1.default.val = "v1"
+key1._.default.val = "v1"
 "#,
             )
             .unwrap();
@@ -260,7 +242,7 @@ key1.default.val = "v1"
             .assert()
             .failure()
             .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
+                "Reserved profile name '{}' cannot be used",
                 kw
             )));
     }
@@ -268,61 +250,57 @@ key1.default.val = "v1"
 
 #[test]
 fn test_reserved_keyword_in_envfile_profile_rejected() {
-    for kw in ["val", "env", "null", "tags"] {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let config = temp.child("settingspec.toml");
-        config
-            .write_str(&format!(
-                r#"
+    let kw = "tags";
+    let temp = assert_fs::TempDir::new().unwrap();
+    let config = temp.child("settingspec.toml");
+    config
+        .write_str(&format!(
+            r#"
 [spec.envfile]
 default = ".env"
 {} = ".env.custom"
 
 [settings]
-key1.default.val = "v1"
+key1._.default.val = "v1"
 "#,
-                kw
+            kw
+        ))
+        .unwrap();
+
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(format!(
+            "Reserved profile name '{}' cannot be used",
+            kw
+        )));
+}
+
+#[test]
+fn test_directive_keywords_allowed_as_profile_names() {
+    for kw in ["val", "env", "null"] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        let config = temp.child("settingspec.toml");
+        config
+            .write_str(&format!(
+                r#"
+[spec]
+profile.options = ["dev", "{}"]
+profile.default = "dev"
+
+[settings]
+key1._.default.val = "base"
+key1._.{}.val = "custom"
+"#,
+                kw, kw
             ))
             .unwrap();
 
         let mut cmd = Command::cargo_bin("settingspec").unwrap();
-        cmd.current_dir(temp.path())
-            .arg("check")
-            .assert()
-            .failure()
-            .stderr(predicate::str::contains(format!(
-                "Reserved directive keyword '{}' cannot be used as a setting key segment or profile name",
-                kw
-            )));
+        cmd.current_dir(temp.path()).arg("check").assert().success();
     }
-}
-
-#[test]
-fn test_similar_names_containing_keywords_are_allowed() {
-    let temp = assert_fs::TempDir::new().unwrap();
-    let config = temp.child("settingspec.toml");
-    config
-        .write_str(
-            r#"
-[spec]
-profile.options = ["evaluate", "my_env", "nullable", "tagset"]
-profile.default = "evaluate"
-
-[settings]
-evaluation.default.val = "base1"
-evaluation.my_env.val = "ok1"
-environment.var.default.val = "base2"
-environment.var.nullable.val = "ok2"
-validator.eval.default.val = "base3"
-validator.eval.tagset.val = "ok3"
-tag_manager.tags_list.default.val = "base4"
-tag_manager.tags_list.evaluate.val = "ok4"
-"#,
-        )
-        .unwrap();
-
-    let mut cmd = Command::cargo_bin("settingspec").unwrap();
-    cmd.current_dir(temp.path()).arg("check").assert().success();
 }
 
 #[test]
@@ -333,11 +311,11 @@ fn test_valid_directive_usage_with_all_reserved_keywords() {
         .write_str(
             r#"
 [settings]
-my_key.default.val = "hello"
-my_key.default.env = "MY_KEY_VAR"
-my_key.default.tags = ["tag1", "tag2"]
-cleared_key.default.null = true
-table_key.default.val = { inner = 42 }
+my_key._.default.val = "hello"
+my_key._.default.env = "MY_KEY_VAR"
+my_key._.tags = ["tag1", "tag2"]
+cleared_key._.default.null = true
+table_key._.default.val = { inner = 42 }
 "#,
         )
         .unwrap();
@@ -354,10 +332,10 @@ fn test_reserved_keywords_as_table_values_in_val() {
         .write_str(
             r#"
 [settings]
-key1.default.val = { val = 1 }
-key2.default.val = { null = true }
-key3.default.val = { tags = [1, 2, 3] }
-key4.default.val = { env = "SOME_ENV" }
+key1._.default.val = { val = 1 }
+key2._.default.val = { null = true }
+key3._.default.val = { tags = [1, 2, 3] }
+key4._.default.val = { env = "SOME_ENV" }
 "#,
         )
         .unwrap();
@@ -394,7 +372,7 @@ fn test_nested_default_in_table_val() {
 "settings.json" = true
 
 [settings]
-key.default.val = { default = { val = 1 } }
+key._.default.val = { default = { val = 1 } }
 "#,
         )
         .unwrap();

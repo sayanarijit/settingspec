@@ -17,7 +17,7 @@ export.mode = 0x600
 export.file."secret_settings.toml" = true
 
 [settings]
-secret_key.default.val = "very_secret_value"
+secret_key._.default.val = "very_secret_value"
 "#,
         )
         .unwrap();
@@ -51,7 +51,7 @@ export.mode = 0x640
 export.file."secret_settings.toml" = true
 
 [settings]
-secret_key.default.val = "very_secret_value"
+secret_key._.default.val = "very_secret_value"
 "#,
         )
         .unwrap();
@@ -85,7 +85,7 @@ export.keep = false
 export.file."secret.json" = true
 
 [settings]
-token.default.val = "super_secret"
+token._.default.val = "super_secret"
 "#,
         )
         .unwrap();

@@ -115,19 +115,7 @@ pub fn resolve_settings(
             }
         }
 
-        let tags = if let Some(decl) = profile_decl {
-            if !decl.tags.is_empty() {
-                decl.tags.clone()
-            } else if let Some(def) = default_decl {
-                def.tags.clone()
-            } else {
-                Vec::new()
-            }
-        } else if let Some(def) = default_decl {
-            def.tags.clone()
-        } else {
-            Vec::new()
-        };
+        let tags = setting.tags.clone();
 
         if let Some(val) = final_val {
             resolved.push(ResolvedSetting {

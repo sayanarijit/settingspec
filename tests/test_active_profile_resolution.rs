@@ -14,8 +14,8 @@ profile.options = ["dev", "prod"]
 profile.default = "dev"
 
 [settings]
-env_name.default.val = "base"
-env_name.prod.val = "production"
+env_name._.default.val = "base"
+env_name._.prod.val = "production"
 "#,
         )
         .unwrap();
@@ -44,8 +44,8 @@ profile.options = ["dev", "staging"]
 profile.default = "dev"
 
 [settings]
-mode.default.val = "development"
-mode.staging.val = "staging_mode"
+mode._.default.val = "development"
+mode._.staging.val = "staging_mode"
 "#,
         )
         .unwrap();
@@ -73,9 +73,9 @@ profile.options = ["dev", "prod"]
 profile.default = "dev"
 
 [settings]
-mode.default.val = "base"
-mode.dev.val = "dev_active"
-mode.prod.val = "prod_active"
+mode._.default.val = "base"
+mode._.dev.val = "dev_active"
+mode._.prod.val = "prod_active"
 "#,
         )
         .unwrap();
@@ -103,8 +103,8 @@ profile.options = ["dev", "prod"]
 profile.default = "dev"
 
 [settings]
-mode.dev.val = "dev_val"
-mode.prod.val = "prod_val"
+mode._.dev.val = "dev_val"
+mode._.prod.val = "prod_val"
 "#,
         )
         .unwrap();
@@ -132,8 +132,8 @@ profile.options = ["dev", "prod"]
 # profile.default is omitted, env var is not set
 
 [settings]
-key1.dev.val = "val1"
-key1.prod.val = "val2"
+key1._.dev.val = "val1"
+key1._.prod.val = "val2"
 "#,
         )
         .unwrap();
@@ -157,8 +157,8 @@ fn test_default_only_resolution_when_options_unset_and_no_profile_selected() {
         .write_str(
             r#"
 [settings]
-key1.default.val = "only_default"
-key2.prod.val = "prod_only"
+key1._.default.val = "only_default"
+key2._.prod.val = "prod_only"
 "#,
         )
         .unwrap();

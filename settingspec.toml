@@ -40,32 +40,32 @@ export.stdout = "toml"        # Optional: Print in toml format
 export.env = "PREFIX_"        # Optional: Export as environment variables prefixed with this string
 export.stdin = "toml"         # Optional: Pass settings to program stdin in specified format
 
-[settings] # Declare the settings here with syntax: `<key>.<profile>.<directive> = <value>`
-key1.default.val = "val1"  # Default value for all profiles
-key1.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
+[settings] # Declare the settings here with syntax: `<key>._.<profile>.<directive> = <value>`
+key1._.default.val = "val1"  # Default value for all profiles
+key1._.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
 
 # Strictly define different values for different profiles
-key2.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
-key2.stage.val = "stage2"
-key2.prod.env = "KEY2"     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
+key2._.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
+key2._.stage.val = "stage2"
+key2._.prod.env = "KEY2"     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
 
-group1.key1.default.val = "group1val1"
-group1.key1.default.tags = ["tag1", "tag2"] # Optional: Tags for the setting
+group1.key1._.default.val = "group1val1"
+group1.key1._.tags = ["tag1", "tag2"] # Optional: Tags for the setting
 
 [settings.group2.subgroup]
-key1.default.val = "group2val1"
-key2.default.val = "group2val2"
-key3.default.val = "group2val3"
-key3.default.tags = ["tag1"]
+key1._.default.val = "group2val1"
+key2._.default.val = "group2val2"
+key3._.default.val = "group2val3"
+key3._.tags = ["tag1"]
 
 [settings.group3.subgroup]
-key1.default.val = "group3val1"
-key2.default.val = "group3val2"
-key3.default.val = "group3val3"
-key3.default.tags = ["tag2"]
+key1._.default.val = "group3val1"
+key2._.default.val = "group3val2"
+key3._.default.val = "group3val3"
+key3._.tags = ["tag2"]
 
 [settings.group4]  # These work as we expect
-key1.default.val = { val = 1 }
-key2.default.val = { default = { val = 1 } }
-key3.default.val = { default = { null = true } }
-key4.default.val = { default = { val = { null = true } } }
+key1._.default.val = { val = 1 }
+key2._.default.val = { default = { val = 1 } }
+key3._.default.val = { default = { null = true } }
+key4._.default.val = { default = { val = { null = true } } }

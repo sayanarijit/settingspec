@@ -10,13 +10,13 @@ fn test_all_supported_val_types() {
         .write_str(
             r#"
 [settings]
-str_val.default.val = "hello world"
-int_val.default.val = 42
-float_val.default.val = 3.1415
-bool_val.default.val = true
-datetime_val.default.val = 2026-09-25T12:00:00Z
-array_val.default.val = [1, 2, 3]
-table_val.default.val = { host = "localhost", port = 5432 }
+str_val._.default.val = "hello world"
+int_val._.default.val = 42
+float_val._.default.val = 3.1415
+bool_val._.default.val = true
+datetime_val._.default.val = 2026-09-25T12:00:00Z
+array_val._.default.val = [1, 2, 3]
+table_val._.default.val = { host = "localhost", port = 5432 }
 "#,
         )
         .unwrap();
@@ -48,8 +48,8 @@ fn test_env_override_with_val_fallback() {
         .write_str(
             r#"
 [settings]
-secret.default.val = "default_secret"
-secret.default.env = "MY_SECRET_VAR"
+secret._.default.val = "default_secret"
+secret._.default.env = "MY_SECRET_VAR"
 "#,
         )
         .unwrap();
@@ -86,8 +86,8 @@ fn test_env_override_with_null_fallback() {
 export.file."settings.json" = true
 
 [settings]
-optional_key.default.null = true
-optional_key.default.env = "OPTIONAL_VAR"
+optional_key._.default.null = true
+optional_key._.default.env = "OPTIONAL_VAR"
 "#,
         )
         .unwrap();
@@ -122,7 +122,7 @@ fn test_env_without_val_or_null_fails_when_absent() {
         .write_str(
             r#"
 [settings]
-required_secret.default.env = "UNSET_REQUIRED_VAR"
+required_secret._.default.env = "UNSET_REQUIRED_VAR"
 "#,
         )
         .unwrap();
@@ -146,8 +146,8 @@ fn test_null_cannot_coexist_with_val() {
         .write_str(
             r#"
 [settings]
-bad_key.default.val = "some_val"
-bad_key.default.null = true
+bad_key._.default.val = "some_val"
+bad_key._.default.null = true
 "#,
         )
         .unwrap();
@@ -168,7 +168,7 @@ fn test_null_false_is_rejected() {
         .write_str(
             r#"
 [settings]
-bad_null.default.null = false
+bad_null._.default.null = false
 "#,
         )
         .unwrap();
@@ -189,8 +189,8 @@ fn test_tags_are_not_exported_as_values() {
         .write_str(
             r#"
 [settings]
-api_key.default.val = "key123"
-api_key.default.tags = ["sensitive", "auth"]
+api_key._.default.val = "key123"
+api_key._.tags = ["sensitive", "auth"]
 "#,
         )
         .unwrap();
@@ -215,7 +215,7 @@ fn test_unknown_directive_rejected() {
         .write_str(
             r#"
 [settings]
-key1.default.value = "val1"
+key1._.default.value = "val1"
 "#,
         )
         .unwrap();
@@ -240,9 +240,9 @@ profile.options = ["dev", "prod"]
 profile.default = "prod"
 
 [settings]
-tier.default.val = "tier_default"
-tier.prod.val = "tier_prod_val"
-tier.prod.env = "TIER_PROD_ENV"
+tier._.default.val = "tier_default"
+tier._.prod.val = "tier_prod_val"
+tier._.prod.env = "TIER_PROD_ENV"
 "#,
         )
         .unwrap();
@@ -280,11 +280,11 @@ fn test_reserved_directive_keywords_and_default_as_table_values() {
 "settings.json" = true
 
 [settings]
-key1.default.val = { val = 1 }
-key2.default.val = { null = true }
-key3.default.val = { tags = [1, 2, 3] }
-key4.default.val = { env = "MY_VAR" }
-key5.default.val = { default = { val = 1 } }
+key1._.default.val = { val = 1 }
+key2._.default.val = { null = true }
+key3._.default.val = { tags = [1, 2, 3] }
+key4._.default.val = { env = "MY_VAR" }
+key5._.default.val = { default = { val = 1 } }
 "#,
         )
         .unwrap();

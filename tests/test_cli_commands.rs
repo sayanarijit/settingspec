@@ -37,7 +37,7 @@ fn test_cli_check_command_does_not_create_files() {
 "settings.json" = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -64,7 +64,7 @@ export.keep = false
 export.file."settings.toml" = true
 
 [settings]
-greeting.default.val = "hello_from_run"
+greeting._.default.val = "hello_from_run"
 "#,
         )
         .unwrap();
@@ -99,7 +99,7 @@ export.keep = true
 export.file."settings.toml" = true
 
 [settings]
-greeting.default.val = "retained_value"
+greeting._.default.val = "retained_value"
 "#,
         )
         .unwrap();
@@ -124,7 +124,7 @@ fn test_cli_run_propagates_child_exit_code() {
         .write_str(
             r#"
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -155,9 +155,9 @@ fn test_cli_run_export_env_true() {
 env = true
 
 [settings]
-server.host.default.val = "127.0.0.1"
-server.port.default.val = 8080
-secret.default.null = true
+server.host._.default.val = "127.0.0.1"
+server.port._.default.val = 8080
+secret._.default.null = true
 "#,
         )
         .unwrap();
@@ -186,7 +186,7 @@ fn test_cli_run_export_env_empty_string_same_as_true() {
 export.env = ""
 
 [settings]
-greeting.default.val = "hello world"
+greeting._.default.val = "hello world"
 "#,
         )
         .unwrap();
@@ -215,8 +215,8 @@ fn test_cli_run_export_env_with_prefix() {
 export.env = "MYAPP_"
 
 [settings]
-db.host.default.val = "localhost"
-db.port.default.val = 5432
+db.host._.default.val = "localhost"
+db.port._.default.val = 5432
 "#,
         )
         .unwrap();
@@ -245,7 +245,7 @@ fn test_cli_run_export_env_false_does_not_export() {
 export.env = false
 
 [settings]
-my_secret.default.val = "do_not_export"
+my_secret._.default.val = "do_not_export"
 "#,
         )
         .unwrap();
@@ -268,9 +268,9 @@ fn test_cli_run_export_env_various_types() {
 export.env = true
 
 [settings]
-flag_bool.default.val = true
-items.default.val = [1, 2, 3]
-rate.default.val = 3.14
+flag_bool._.default.val = true
+items._.default.val = [1, 2, 3]
+rate._.default.val = 3.14
 "#,
         )
         .unwrap();
@@ -299,8 +299,8 @@ fn test_cli_run_export_stdin_true_default_toml() {
 export.stdin = true
 
 [settings]
-server.host.default.val = "127.0.0.1"
-server.port.default.val = 8080
+server.host._.default.val = "127.0.0.1"
+server.port._.default.val = 8080
 "#,
         )
         .unwrap();
@@ -333,7 +333,7 @@ fn test_cli_run_export_stdin_empty_string_same_as_true() {
 export.stdin = ""
 
 [settings]
-greeting.default.val = "hello from stdin"
+greeting._.default.val = "hello from stdin"
 "#,
         )
         .unwrap();
@@ -362,9 +362,9 @@ fn test_cli_run_export_stdin_json() {
 stdin = "json"
 
 [settings]
-api.endpoint.default.val = "https://example.com"
-api.retries.default.val = 5
-flag.default.val = true
+api.endpoint._.default.val = "https://example.com"
+api.retries._.default.val = 5
+flag._.default.val = true
 "#,
         )
         .unwrap();
@@ -393,7 +393,7 @@ fn test_cli_run_export_stdin_yaml() {
 stdin = "yaml"
 
 [settings]
-app.name.default.val = "my_app"
+app.name._.default.val = "my_app"
 "#,
         )
         .unwrap();
@@ -416,8 +416,8 @@ fn test_cli_run_export_stdin_env() {
 stdin = "env"
 
 [settings]
-db.host.default.val = "db.internal"
-db.port.default.val = 3306
+db.host._.default.val = "db.internal"
+db.port._.default.val = 3306
 "#,
         )
         .unwrap();
@@ -446,7 +446,7 @@ fn test_cli_run_export_stdin_false_does_not_pass_settings() {
 export.stdin = false
 
 [settings]
-secret.default.val = "should_not_be_on_stdin"
+secret._.default.val = "should_not_be_on_stdin"
 "#,
         )
         .unwrap();
@@ -471,8 +471,8 @@ export.env = "MYAPP_"
 export.file."config.toml" = true
 
 [settings]
-service.name.default.val = "auth-service"
-service.port.default.val = 9000
+service.name._.default.val = "auth-service"
+service.port._.default.val = 9000
 "#,
         )
         .unwrap();
@@ -504,7 +504,7 @@ fn test_cli_run_export_stdin_unsupported_format_fails() {
 stdin = "unsupported_fmt"
 
 [settings]
-key.default.val = "val"
+key._.default.val = "val"
 "#,
         )
         .unwrap();
@@ -530,7 +530,7 @@ fn test_cli_export_files_rejected() {
 "out.json" = true
 
 [settings]
-msg.default.val = "should_fail"
+msg._.default.val = "should_fail"
 "#,
         )
         .unwrap();
@@ -554,8 +554,8 @@ fn test_cli_export_stdout_true_defaults_to_toml() {
 stdout = true
 
 [settings]
-server.host.default.val = "127.0.0.1"
-server.port.default.val = 8080
+server.host._.default.val = "127.0.0.1"
+server.port._.default.val = 8080
 "#,
         )
         .unwrap();
@@ -580,7 +580,7 @@ fn test_cli_export_file_true_defaults_to_settings_toml() {
 file = true
 
 [settings]
-key1.default.val = "file_val"
+key1._.default.val = "file_val"
 "#,
         )
         .unwrap();
@@ -608,7 +608,7 @@ stdout = true
 file = true
 
 [settings]
-app.name.default.val = "both_outputs"
+app.name._.default.val = "both_outputs"
 "#,
         )
         .unwrap();
@@ -638,7 +638,7 @@ fn test_gitignore_auto_append_on_export_in_git_repo() {
 file = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -668,7 +668,7 @@ file = true
 keep = false
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -702,7 +702,7 @@ export.skip_gitignore = true
 export.file = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -733,7 +733,7 @@ fn test_gitignore_no_duplicate_when_entry_exists() {
 file = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -764,7 +764,7 @@ fn test_gitignore_preserves_content_without_newline() {
 file = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -795,7 +795,7 @@ fn test_gitignore_auto_append_adjacent_to_project_root_in_subdirectory() {
 "output.json" = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -830,7 +830,7 @@ fn test_gitignore_auto_append_from_deep_subdirectory_in_project_root() {
 "output.json" = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -864,7 +864,7 @@ fn test_gitignore_not_created_when_not_in_git_repo() {
 "output.json" = true
 
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -889,7 +889,7 @@ fn test_check_does_not_create_gitignore() {
         .write_str(
             r#"
 [settings]
-key1.default.val = "val1"
+key1._.default.val = "val1"
 "#,
         )
         .unwrap();
@@ -916,8 +916,8 @@ profile.options = ["local", "prod"]
 profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
 
 [settings]
-key.local.val = "local"
-key.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+key._.local.val = "local"
+key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
 "#;
     assert_eq!(content, expected);
 
@@ -947,7 +947,7 @@ fn test_cli_init_skips_if_already_exists() {
     let temp = assert_fs::TempDir::new().unwrap();
     let config = temp.child("settingspec.toml");
     config
-        .write_str("# existing content\n[settings]\nk.default.val = 1\n")
+        .write_str("# existing content\n[settings]\nk._.default.val = 1\n")
         .unwrap();
 
     let mut cmd = Command::cargo_bin("settingspec").unwrap();
@@ -956,7 +956,7 @@ fn test_cli_init_skips_if_already_exists() {
     let content = std::fs::read_to_string(config.path()).unwrap();
     assert_eq!(
         content,
-        "# existing content\n[settings]\nk.default.val = 1\n"
+        "# existing content\n[settings]\nk._.default.val = 1\n"
     );
 }
 
@@ -975,8 +975,8 @@ profile.default = "local"
 "settings.toml" = true
 
 [settings]
-key.local.val = "from_root"
-key.prod.val = "from_root_prod"
+key._.local.val = "from_root"
+key._.prod.val = "from_root_prod"
 "#,
         )
         .unwrap();
@@ -1018,7 +1018,7 @@ fn test_cli_prefers_current_dir_settingspec_over_parent() {
         .write_str(
             r#"
 [settings]
-key.default.val = "from_parent"
+key._.default.val = "from_parent"
 "#,
         )
         .unwrap();
@@ -1030,7 +1030,7 @@ key.default.val = "from_parent"
         .write_str(
             r#"
 [settings]
-key.default.val = "from_child"
+key._.default.val = "from_child"
 "#,
         )
         .unwrap();
@@ -1058,7 +1058,7 @@ fn test_cli_clean_exported_files() {
 [spec.export.file]
 "settings.toml" = true
 [settings]
-key.default.val = "val"
+key._.default.val = "val"
 "#,
         )
         .unwrap();

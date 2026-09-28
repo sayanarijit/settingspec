@@ -41,14 +41,14 @@ profile.options = [                  # Optional: Enables strict checking of per-
 ]
 profile.default = "dev"  # Optional: Default profile when the switch is not set
 
-[settings]                 # Declare the settings here with syntax: `<key>.<profile>.<directive> = <value>`
-key1.default.val = "val1"  # Default value for all profiles
-key1.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
+[settings]                   # Declare the settings here with syntax: `<key>._.<profile>.<directive> = <value>`
+key1._.default.val = "val1"  # Default value for all profiles
+key1._.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
 
 # Strictly define different values for different profiles
-key2.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
-key2.stage.val = "stage2"
-key2.prod.val = "prod2"
+key2._.dev.val = "dev2"      # When SETTINGSPEC_PROFILE=dev, key2=dev2
+key2._.stage.val = "stage2"
+key2._.prod.val = "prod2"
 ```
 
 Overrides are intentional and kept in plain sight (see `key1`).
@@ -61,10 +61,10 @@ The command-line tool `settingspec` can export the final settings into well-know
 
 ```toml
 [spec]
-export.file = true  # Default: Export all settings into settings.toml
-# export.file = {   # Optional: Fine-grained control over what to export
-#   "settings.json" = true,
-#   "settings.yaml" = {
+export.file = true         # Default: Export all settings into settings.toml
+# export.file = {          # Optional: Fine-grained control over what to export
+#   "settings.py" = true,  # Get auto-completion of settings in your editor/IDE for free
+#   "settings.yaml" = {    # Select which keys to export
 #     key1 = true,
 #     group1 = true,
 #     group2.subgroup = true,
@@ -80,11 +80,11 @@ export.env = "PREFIX_"  # Optional: Export as environment variables prefixed wit
 export.stdin = "toml"   # Optional: Pass settings to program stdin in specified format
 
 [settings]
-key1.default.val = "val1"
-group1.key1.default.val = "group1val1"
-group2.subgroup.key1.default.val = "group2val1"
-group3.subgroup.key1.default.val = "group3val1"
-group3.subgroup.key1.default.tags = ["tag1", "tag2"]
+key1._.default.val = "val1"
+group1.key1._.default.val = "group1val1"
+group2.subgroup.key1._.default.val = "group2val1"
+group3.subgroup.key1._.default.val = "group3val1"
+group3.subgroup.key1._.tags = ["tag1", "tag2"]  # Syntax: `<key>._.tags = [...]`
 ```
 
 Now export the final settings as declared.
@@ -108,7 +108,7 @@ settingspec run -- [your program]...
 If no export option is specified, the default behavior is to export all settings into `settings.toml`.
 
 > [!NOTE]
-> If the target programming language supports null values, you can declare it as `key.default.null = true` in the settings section.
+> If the target programming language supports null values, you can declare it as `key._.default.null = true` in the settings section.
 
 ### Easy secrets
 
@@ -139,12 +139,12 @@ settingspec.toml
 profile.options = ["dev", "stage", "prod"]
 
 [settings]
-secret1.default.env = "SECRET1"  # Load value from $SECRET1
+secret1._.default.env = "SECRET1"  # Load value from $SECRET1
 
 # Override the default value from environment variables
-secret2.default.val = "defaultvalue"  # Default value if $SECRET2 is not set
-secret2.default.env = "SECRET2"       # Load value from $SECRET2 if set
-secret2.prod.env = "PRODSECRET"       # Load value from $PRODSECRET if SETTINGSPEC_PROFILE=prod
+secret2._.default.val = "defaultvalue"  # Default value if $SECRET2 is not set
+secret2._.default.env = "SECRET2"       # Load value from $SECRET2 if set
+secret2._.prod.env = "PRODSECRET"       # Load value from $PRODSECRET if SETTINGSPEC_PROFILE=prod
 ```
 
 With these set up, run:
@@ -169,7 +169,7 @@ envfile.prod = "-"          # Read from stdin, encrypted or not
 # decryption.key.path = "~/.ssh/"                    # Default
 
 [settings]
-secret1.default.env = "SECRET1"     # Load value from $SECRET1
+secret1._.default.env = "SECRET1"     # Load value from $SECRET1
 ```
 
 #### Cottage or agebox
@@ -186,7 +186,7 @@ decryption.key.env = "COTTAGE_IDENTITY"
 # decryption.key.env = "AGEBOX_PRIVATE_KEYS"
 
 [settings]
-secret.default.env = "SECRET"
+secret._.default.env = "SECRET"
 ```
 
 ## Learn more
