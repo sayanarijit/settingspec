@@ -6,7 +6,8 @@ use crate::model::*;
 use crate::parser::parse_config_str;
 use crate::profile::resolve_active_profile;
 use crate::resolver::resolve_settings;
-use clap::{Parser, Subcommand};
+use clap::builder::styling::*;
+use clap::{CommandFactory, Parser, Subcommand};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -31,12 +32,14 @@ impl Drop for CleanupGuard {
     }
 }
 
+const STYLES: Styles = Styles::styled()
+    .header(AnsiColor::Green.on_default().bold())
+    .usage(AnsiColor::Green.on_default().bold())
+    .literal(AnsiColor::Cyan.on_default().bold())
+    .placeholder(AnsiColor::Cyan.on_default().dimmed());
+
 #[derive(Parser, Debug)]
-#[command(
-    name = "settingspec",
-    version,
-    about = "One file for all environments, all languages, all submodules."
-)]
+#[command(author, version, about, styles = STYLES, long_about = None, arg_required_else_help = true)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -60,6 +63,16 @@ pub enum Commands {
 
     /// Deletes all generated export files
     Clean,
+
+    #[cfg(feature = "autocomplete")]
+    /// Generate shell completions.
+    /// Example: `eval "$(ctg autocomplete bash)"` to load completions for bash.
+    #[command(name = "autocomplete")]
+    AutoComplete {
+        /// The shell to generate completions for.
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
 }
 
 pub const INIT_CONFIG: &str = r#"[spec]
@@ -173,7 +186,16 @@ pub fn run_cli() -> Result<()> {
         }
         Commands::Watch => run_watch(),
         Commands::Clean => clean_exported_files(),
+        Commands::AutoComplete { shell } => generate_autocompletions(shell),
     }
+}
+
+fn generate_autocompletions(shell: clap_complete::Shell) -> Result<()> {
+    let mut cmd = Cli::command();
+    let mut out = std::io::stdout();
+    let bin_name = cmd.get_name().to_string();
+    clap_complete::generate(shell, &mut cmd, bin_name, &mut out);
+    Ok(())
 }
 
 fn run_watch() -> Result<()> {
