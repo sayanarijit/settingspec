@@ -66,7 +66,7 @@ pub enum Commands {
 
     #[cfg(feature = "autocomplete")]
     /// Generate shell completions.
-    /// Example: `eval "$(ctg autocomplete bash)"` to load completions for bash.
+    /// Example: `eval "$(settingspec autocomplete bash)"` to load completions for bash.
     #[command(name = "autocomplete")]
     AutoComplete {
         /// The shell to generate completions for.
