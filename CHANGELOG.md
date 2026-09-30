@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0](https://github.com/sayanarijit/settingspec/compare/v0.7.0...v0.8.0) - 2026-09-30
+
+### Added
+
+- *(cli)* generate autocompletions and display colors
+
+### Fixed
+
+- *(cli)* fix typo
+- *(readme)* fix typo
+- *(readme)* fix readme
+
+### Other
+
+- *(readme)* add installation guide
+
 ## [0.7.0](https://github.com/sayanarijit/settingspec/compare/v0.6.0...v0.7.0) - 2026-09-28
 
 ### Added
