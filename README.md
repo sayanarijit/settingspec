@@ -13,7 +13,8 @@
 
 # SettingSpec
 
-1. [Concepts](#concepts)
+1. [Install](#install)
+2. [Concepts](#concepts)
    1. [Single file convenience](#single-file-convenience)
    2. [Declarative profiles as environments](#declarative-profiles-as-environments)
    3. [Language independent](#language-independent)
@@ -21,7 +22,29 @@
       1. [SecretSpec](#secretspec)
       2. [Dotenv](#dotenv)
       3. [Cottage or agebox](#cottage-or-agebox)
-2. [Learn more](#learn-more)
+3. [Learn more](#learn-more)
+
+## Install
+
+```bash
+# rust: cargo-binstall/cargo
+cargo binstall --locked settingspec
+cargo install --locked settingspec
+
+# python: pip/uv/uvx
+pip install settingspec
+uv pip install settingspec
+uvx --from settingspec ctg --version
+
+# node: yarn/pnpm/npx
+yarn global add @sayanarijit/settingspec
+pnpm add -g @sayanarijit/settingspec
+npx -p @sayanarijit/settingspec ctg --version
+
+# container: docker/podman
+docker run --rm -v $PWD:/app ghcr.io/sayanarijit/settingspec --version
+podman run --rm -v $PWD:/app ghcr.io/sayanarijit/settingspec --version
+```
 
 ## Concepts
 
