@@ -77,7 +77,7 @@ key2._ = {  # Strictly define different values for different profiles
 
 Overrides are intentional and kept in plain sight (see `key1`).
 
-By not defining a default value, you can ensure that you never miss adding a value for a specific profile (e.g. this file will refuse to load if `key2.prod` declaration is missing).
+By not defining a default value, you can ensure that you never miss adding a value for a specific profile (e.g. this file will refuse to load if `key2._.prod` declaration is missing).
 
 ### Language independent
 
