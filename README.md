@@ -34,12 +34,12 @@ cargo install --locked settingspec
 # python: pip/uv/uvx
 pip install settingspec
 uv pip install settingspec
-uvx --from settingspec ctg --version
+uvx settingspec --version
 
 # node: yarn/pnpm/npx
 yarn global add @sayanarijit/settingspec
 pnpm add -g @sayanarijit/settingspec
-npx -p @sayanarijit/settingspec ctg --version
+npx @sayanarijit/settingspec --version
 
 # container: docker/podman
 docker run --rm -v $PWD:/app ghcr.io/sayanarijit/settingspec --version
