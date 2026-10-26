@@ -1,7 +1,5 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://s15.gifyu.com/images/buXVO.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://s15.gifyu.com/images/buXZJ.png">
     <img alt="The settingspec cover" width="100%" src="https://s15.gifyu.com/images/buXZJ.png">
   </picture>
 </p>
