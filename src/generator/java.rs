@@ -1,7 +1,9 @@
-use super::common::{format_scalar_literal, is_valid_identifier};
+use super::common::{
+    Leaf, env_name_literal, format_scalar_literal, is_valid_identifier, leaf_of, single_kind,
+};
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{ResolvedSetting, TypeShape, ValueKind};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -22,11 +24,15 @@ fn format_java_scope(map: &IndexMap<String, ConfigNode>, indent_level: usize, ou
     for (k, node) in map {
         let field_name = sanitize_java_identifier(k);
         match node {
-            ConfigNode::Null => {
+            ConfigNode::Typed(shape, inner) => {
+                let (type_str, val_str) = java_typed(shape, inner);
                 out.push_str(&format!(
-                    "{}public static final Object {} = null;\n",
-                    indent, field_name
+                    "{}public static final {} {} = {};\n",
+                    indent, type_str, field_name, val_str
                 ));
+            }
+            ConfigNode::Null | ConfigNode::Env(_) => {
+                unreachable!("nulls and environment references are always typed")
             }
             ConfigNode::Value(v) => match v {
                 TomlValue::Table(_) => {} // Handled in class loop below
@@ -159,6 +165,52 @@ fn sanitize_java_identifier(name: &str) -> String {
     } else {
         name.to_string()
     }
+}
+
+/// The Java type and value expression of a value whose type is shared by all
+/// profiles: `T` or `Optional<T>` for a single scalar kind, otherwise `Object`.
+fn java_typed(shape: &TypeShape, inner: &ConfigNode) -> (String, String) {
+    let boxed = single_kind(shape).and_then(|k| match k {
+        ValueKind::String => Some("String"),
+        ValueKind::Integer => Some("Long"),
+        ValueKind::Float => Some("Double"),
+        ValueKind::Boolean => Some("Boolean"),
+        ValueKind::Array | ValueKind::Table => None,
+    });
+    let type_str = match boxed {
+        Some(t) if shape.nullable => format!("java.util.Optional<{}>", t),
+        Some(t) => t.to_string(),
+        None => "Object".to_string(),
+    };
+
+    let optional = boxed.is_some() && shape.nullable;
+    let value = match leaf_of(inner) {
+        Some(Leaf::Value(v)) => {
+            let lit = match v {
+                TomlValue::Array(arr) => java_array_literal(arr).1,
+                _ => toml_to_java_const(v).1,
+            };
+            if optional {
+                format!("java.util.Optional.of({})", lit)
+            } else {
+                lit
+            }
+        }
+        Some(Leaf::Env(r)) => {
+            let getenv = format!("System.getenv({})", env_name_literal(&r.name));
+            match (shape.nullable, optional) {
+                (_, true) => format!("java.util.Optional.ofNullable({})", getenv),
+                (true, false) => getenv,
+                (false, _) => format!(
+                    "java.util.Objects.requireNonNull({}, \"{} is not set\")",
+                    getenv, r.name
+                ),
+            }
+        }
+        _ if optional => "java.util.Optional.empty()".to_string(),
+        _ => "null".to_string(),
+    };
+    (type_str, value)
 }
 
 fn toml_to_java_const(v: &TomlValue) -> (&'static str, String) {

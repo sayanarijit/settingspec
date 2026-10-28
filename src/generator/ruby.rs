@@ -1,7 +1,7 @@
 use super::common::format_scalar_literal;
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{EnvFallback, EnvRef, ResolvedSetting};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -22,6 +22,15 @@ fn format_ruby_scope(map: &IndexMap<String, ConfigNode>, indent_level: usize, ou
         match node {
             ConfigNode::Null => {
                 out.push_str(&format!("{}{} = nil\n", indent, const_name));
+            }
+            ConfigNode::Typed(..) => unreachable!("only produced for statically typed formats"),
+            ConfigNode::Env(r) => {
+                out.push_str(&format!(
+                    "{}{} = {}\n",
+                    indent,
+                    const_name,
+                    env_expression(r)
+                ));
             }
             ConfigNode::Value(v) => match v {
                 TomlValue::Table(_) => {} // Handled in module loop below
@@ -115,7 +124,7 @@ fn to_ruby_module_name(name: &str) -> String {
     }
 }
 
-fn toml_to_ruby_literal(v: &TomlValue) -> String {
+pub(super) fn toml_to_ruby_literal(v: &TomlValue) -> String {
     if let Some(literal) = format_scalar_literal(v) {
         match v {
             TomlValue::String(_) | TomlValue::Datetime(_) => format!("{}.freeze", literal),
@@ -129,6 +138,17 @@ fn toml_to_ruby_literal(v: &TomlValue) -> String {
                 format!("[{}].freeze", items.join(", "))
             }
             _ => "\"\"".to_string(),
+        }
+    }
+}
+
+pub(super) fn env_expression(r: &EnvRef) -> String {
+    let name = serde_json::to_string(&r.name).unwrap();
+    match &r.fallback {
+        None => format!("ENV[{}]", name),
+        Some(EnvFallback::Null) => format!("ENV.fetch({}, nil)", name),
+        Some(EnvFallback::Value(v)) => {
+            format!("ENV.fetch({}, {})", name, toml_to_ruby_literal(v))
         }
     }
 }

@@ -47,6 +47,9 @@ fn test_env_override_with_val_fallback() {
     config
         .write_str(
             r#"
+[spec]
+export.resolve = true
+
 [settings]
 secret._.default.val = "default_secret"
 secret._.default.env = "MY_SECRET_VAR"
@@ -83,6 +86,7 @@ fn test_env_override_with_null_fallback() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 export.file."settings.json" = true
 
 [settings]
@@ -236,6 +240,7 @@ fn test_resolution_precedence_profile_env_over_profile_val_over_default() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "prod"
 

@@ -20,6 +20,8 @@ pub fn generate_yaml(settings: &[ResolvedSetting]) -> Result<String> {
 fn node_to_yaml_value(node: &ConfigNode) -> YamlValue {
     match node {
         ConfigNode::Null => YamlValue::Null,
+        ConfigNode::Env(r) => YamlValue::String(r.name.clone()),
+        ConfigNode::Typed(..) => unreachable!("only produced for statically typed formats"),
         ConfigNode::Value(v) => toml_to_yaml_value(v),
         ConfigNode::Map(map) => {
             let mut mapping = serde_yaml::Mapping::new();

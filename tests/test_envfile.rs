@@ -10,6 +10,7 @@ fn test_envfile_default_loaded_and_used() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "dev"
 envfile.default = ".env"
@@ -43,6 +44,7 @@ fn test_profile_specific_envfile_takes_precedence() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "prod"
 envfile.default = ".env"
@@ -79,6 +81,7 @@ fn test_envfile_stdin_sourcing() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "prod"
 envfile.prod = "-"
@@ -110,6 +113,7 @@ fn test_missing_envfile_fails_with_error() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = "non_existent.env"
 
 [settings]
@@ -136,6 +140,7 @@ fn test_sourced_envfile_passed_to_child_command_in_run() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env"
 
 [settings]
@@ -178,6 +183,7 @@ fn test_age_decryption_with_env_var_literal_key() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev"]
 profile.default = "dev"
 envfile.default = ".env.age"
@@ -218,6 +224,7 @@ fn test_age_decryption_with_env_var_path() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev"]
 profile.default = "dev"
 envfile.default = ".env.age"
@@ -263,6 +270,7 @@ fn test_age_decryption_with_env_var_colon_delimited_paths() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 
 [settings]
@@ -310,6 +318,7 @@ fn test_age_decryption_fallback_to_key_path_single_file() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "key.txt"
 
@@ -357,6 +366,7 @@ fn test_age_decryption_fallback_to_key_path_directory_recursive() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "keys"
 
@@ -399,6 +409,7 @@ fn test_age_decryption_fallback_to_key_path_array() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = ["nonexistent_key.txt", "actual_key.txt"]
 
@@ -441,6 +452,7 @@ fn test_age_decryption_armored_and_header_detection() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env"
 decryption.key.path = "key.txt"
 
@@ -481,6 +493,7 @@ fn test_age_decryption_stdin() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["prod"]
 profile.default = "prod"
 envfile.prod = "-"
@@ -527,6 +540,7 @@ fn test_age_decryption_env_var_precedence_over_key_path() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "valid_key.txt"
 
@@ -570,6 +584,7 @@ fn test_age_decryption_empty_env_var_falls_back_to_key_path() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "valid_key.txt"
 
@@ -601,6 +616,7 @@ fn test_age_decryption_failure_identifies_profile_and_file() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "stage"]
 profile.default = "stage"
 envfile.stage = "stage_secrets.age"
@@ -643,6 +659,7 @@ fn test_check_validates_age_decryption_for_active_profile() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "stage"]
 profile.default = "stage"
 envfile.stage = ".env.stage.age"
@@ -688,6 +705,7 @@ AAAEADBJvjZT8X6JRJI8xVq/1aU8nMVgOtVnmdwqWwrSlXG3sKLqeplhpW+uObz5dvMgjz
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "~/.ssh/"
 
@@ -740,6 +758,7 @@ LF7kNlDznn/nyZlg==
         .write_str(
             r#"
 [spec]
+export.resolve = true
 envfile.default = ".env.age"
 decryption.key.path = "keys"
 
@@ -777,6 +796,7 @@ fn test_default_envfile_not_overwritten_by_active_profile() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "dev"
 envfile.default = ".env"
@@ -816,6 +836,7 @@ fn test_default_envfile_loaded_as_fallback_when_profile_envfile_declaration_is_m
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "dev"
 envfile.default = ".env"
@@ -848,6 +869,7 @@ fn test_profile_envfile_declared_but_file_missing_raises_error() {
         .write_str(
             r#"
 [spec]
+export.resolve = true
 profile.options = ["dev", "prod"]
 profile.default = "dev"
 envfile.default = ".env"
@@ -875,4 +897,37 @@ key._.dev.val = "dev_val"
         .stderr(predicate::str::contains(
             "Environment file '.env.prod' not found",
         ));
+}
+
+#[test]
+fn test_envfile_string_shorthand_is_default() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(
+            r#"
+[spec]
+export.resolve = true
+profile.options = ["dev", "prod"]
+profile.default = "dev"
+envfile = ".env"
+
+[settings]
+secret._.default.env = "MY_SECRET"
+"#,
+        )
+        .unwrap();
+    temp.child(".env")
+        .write_str("MY_SECRET=super_secret_value\n")
+        .unwrap();
+
+    for profile in ["dev", "prod"] {
+        let mut cmd = Command::cargo_bin("settingspec").unwrap();
+        cmd.current_dir(temp.path())
+            .env("SETTINGSPEC_PROFILE", profile)
+            .arg("export")
+            .assert()
+            .success();
+        temp.child("settings.toml")
+            .assert(predicate::str::contains("secret = \"super_secret_value\""));
+    }
 }

@@ -1,6 +1,6 @@
 # SettingSpec Specification
 
-**Version:** 0.7  
+**Version:** 0.9  
 **Status:** Released  
 **Authors:** Arijit Basu and SettingSpec Contributors  
 **Repository:** <https://github.com/sayanarijit/settingspec>
@@ -113,6 +113,7 @@ decryption.key.path = "~/.ssh/"
 [spec.export]
 mode = 0x600
 keep = false
+resolve = false
 stdout = "toml"
 
 [spec.export.file]
@@ -144,7 +145,7 @@ If any of these rules fail, configuration loading MUST stop with an error.
 
 ### 3.2 Environment files
 
-SettingSpec can load dotenv-style environment files before resolving settings.
+Dotenv-style files are loaded before settings are resolved. Their variables are available to `env` directives and to the child command.
 
 ```toml
 [spec]
@@ -153,34 +154,18 @@ envfile.stage = ".env.age"
 envfile.prod = "-"
 ```
 
-- `envfile.default` is used when the active profile has no specific environment file.
-- `envfile.<profile>` is used for a specific profile.
-- `-` means read dotenv content from standard input (`stdin`).
+- `envfile.<profile>` is used for that profile; otherwise `envfile.default` is used. Files are never merged.
+- `-` reads dotenv content from standard input.
+- A declared file that is missing MUST cause an error, with no fallback to `envfile.default`.
+- Age-encrypted files, including `stdin`, are decrypted before being read.
 
-Environment files including the piped standard input may be age-encrypted.
+#### Shorthand
 
-#### Loading rules
-
-1. If the active profile has its own `envfile.<profile>`, SettingSpec loads that file.
-2. If that file is declared but missing, SettingSpec MUST stop with an error. It MUST NOT fall back to `envfile.default`.
-3. A profile-specific environment file replaces the default one; the two files are not merged.
-4. If no profile-specific file is declared, `envfile.default` is used.
-5. Environment files are loaded before settings are resolved.
-6. Loaded variables are available while resolving settings and when running the child command.
-7. Age-encrypted files are decrypted before the dotenv content is read.
-8. Input from `stdin` may also be age-encrypted and follows the same decryption rules.
+`envfile = ".env"` is equivalent to `envfile.default = ".env"`. It cannot be combined with any `envfile.<profile>` or `envfile.default` declaration; that is invalid TOML and MUST cause an error.
 
 ### 3.2.1 Age-encrypted environment files
 
-SettingSpec supports age-encrypted environment files so encrypted secrets can be stored alongside `settingspec.toml`.
-
-A file is treated as age-encrypted when:
-
-- Its name ends in `.age`, or
-- Its contents use the age binary or armored format:
-  `-----BEGIN AGE ENCRYPTED FILE-----`
-
-Decryption keys are configured with:
+A file is treated as age-encrypted when its name ends in `.age` or its contents begin with `-----BEGIN AGE ENCRYPTED FILE-----` (or use the age binary format).
 
 ```toml
 [spec]
@@ -188,37 +173,19 @@ decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"
 decryption.key.path = "~/.ssh/"
 ```
 
-| Setting               | Type            | Default                      | Meaning                                                             |
-| --------------------- | --------------- | ---------------------------- | ------------------------------------------------------------------- |
-| `decryption.key.env`  | String          | `SETTINGSPEC_DECRYPTION_KEY` | Environment variable containing a decryption identity or key paths. |
-| `decryption.key.path` | String or array | Unset                        | Fallback file or directory paths containing age identities.         |
+| Setting               | Type            | Default                      | Meaning                                                           |
+| --------------------- | --------------- | ---------------------------- | ----------------------------------------------------------------- |
+| `decryption.key.env`  | String          | `SETTINGSPEC_DECRYPTION_KEY` | Environment variable holding an age identity or `:`-separated paths. |
+| `decryption.key.path` | String or array | Unset                        | Fallback files or directories containing age identities.          |
 
-A path can point to either a file or a directory. Directories are searched recursively for supported age identity files.
+Paths may be files or directories; directories are searched recursively. Passphrase-protected identities are not supported.
 
-Passphrase-protected identity files are not supported.
+Identities are tried in this order, and the first one that decrypts the file is used:
 
-#### Decryption key order
+1. The value of `decryption.key.env`: either one literal identity (`AGE-SECRET-KEY-1...`) or paths such as `~/.age/keys:/etc/settingspec/keys`.
+2. The paths in `decryption.key.path`, if the variable is empty or missing.
 
-SettingSpec looks for a decryption identity in this order:
-
-1. Read the environment variable named by `decryption.key.env`.
-2. If it is empty or missing, search the paths in `decryption.key.path`.
-3. If no identity can decrypt the file, SettingSpec MUST stop with an error identifying the affected profile and file.
-
-The value of `decryption.key.env` must be either:
-
-- One literal age identity, such as `AGE-SECRET-KEY-1...`, or
-- One or more paths separated by `:`.
-
-Example:
-
-```text
-~/.age/keys:/etc/settingspec/keys
-```
-
-If a supplied path is a file, that file is checked directly. If it is a directory, the directory is searched recursively.
-
-SettingSpec tries candidate identities in the order found and uses the first one that successfully decrypts the file.
+If none succeeds, SettingSpec MUST stop with an error naming the affected profile and file.
 
 ### 3.3 Export settings
 
@@ -240,6 +207,66 @@ The default allows only the file owner to read and write the file.
 When `false`, generated files are deleted after `settingspec run` finishes.
 
 When `true`, generated files remain on disk.
+
+#### `export.resolve`
+
+- Type: Boolean.
+- Default: `false`.
+
+Controls whether settings that get their value from an environment variable (the `env` directive) are written to export files as resolved values or as references to the environment variable.
+
+```toml
+[spec.export]
+resolve = true
+```
+
+When `true`, exported files contain the resolved values of environment variables.
+
+When `false`, exported files MUST NOT contain the resolved value of a setting that was selected through an `env` directive. Instead:
+
+- Static data formats (TOML, JSON, YAML) contain the environment variable name only, as a plain string value.
+- `.env` files contain a shell reference to the variable, such as `DB_PASSWORD=${DB_PASSWORD}`.
+- Programming language formats contain the language's equivalent of reading the environment variable, such as `os.environ["DB_PASSWORD"]` in Python.
+- Elm and Terraform cannot read environment variables. Exporting a setting that comes from an `env` directive to these formats with `resolve = false` MUST cause an error, so that a resolved value is never written silently. Settings that only use `val` or `null` export normally.
+
+In statically typed languages, a reference is typed as part of the setting's type (see section 4.2.1). For a setting whose type is only a string, reading an unset variable fails at runtime using the language's usual mechanism, or returns an empty string where there is none (Go). If the type includes null, an unset variable is null. Languages that read the environment at runtime evaluate the reference when the exported file is loaded, or in a function for Rust, Zig, and Haskell.
+
+The examples below are for a setting whose type is only a string ("not nullable") and for a string-or-null setting ("nullable"):
+
+| Format                        | String                                                 | String or null                                           |
+| ----------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
+| `.json`, `.yaml`, `.toml`     | `"DB_PASSWORD"`                                        | `"DB_PASSWORD"`                                          |
+| `.env`                        | `${DB_PASSWORD}`                                       | `${DB_PASSWORD}`                                         |
+| `.py`                         | `os.environ["DB_PASSWORD"]`                            | `os.environ["DB_PASSWORD"]`                              |
+| `.js`, `.mjs`                 | `process.env.DB_PASSWORD`                              | `process.env.DB_PASSWORD`                                |
+| `.ts`                         | `process.env.DB_PASSWORD as string`                    | `(process.env.DB_PASSWORD ?? null)`                      |
+| `.rb`                         | `ENV["DB_PASSWORD"]`                                   | `ENV["DB_PASSWORD"]`                                     |
+| `.lua`                        | `os.getenv("DB_PASSWORD")`                             | `os.getenv("DB_PASSWORD")`                               |
+| `.rs`                         | `fn x() -> String` (`std::env::var(..).expect(..)`)    | `fn x() -> Option<String>` (`std::env::var(..).ok()`)    |
+| `.go`                         | `os.Getenv(..)`                                        | `*string` from `os.LookupEnv(..)`, nil when unset        |
+| `.zig`                        | `fn x() []const u8` (`std.posix.getenv(..).?`)         | `fn x() ?[]const u8` (`std.posix.getenv(..)`)            |
+| `.c`, `.h`                    | `const char* (*x)(void)` (`getenv(..)`)                | `const char* (*x)(void)` (`getenv(..)`, NULL when unset) |
+| `.cpp`, `.hpp`, `.cc`, `.cxx` | `std::string` (throws when unset)                      | `std::optional<std::string>`                             |
+| `.java`                       | `String` (`Objects.requireNonNull(System.getenv(..))`) | `java.util.Optional<String>`                             |
+| `.scala`                      | `lazy val x: String = sys.env(..)`                     | `lazy val x: Option[String] = sys.env.get(..)`           |
+| `.hs`                         | `IO String` (`getEnv ..`)                              | `IO (Maybe String)` (`lookupEnv ..`)                     |
+
+Settings whose value comes from `val` or `null` are always exported as-is, regardless of this option.
+
+When a setting has an `env` directive and a `val` or `null` fallback (see section 4.2), the fallback is preserved only in dynamically typed languages, since the type of a statically typed setting already includes the kind of the fallback, where the exported file then behaves like the resolution rules in section 5.2:
+
+| Format        | Output when `resolve = false` and fallback is `"fallback"` |
+| ------------- | ---------------------------------------------------------- |
+| `.py`         | `os.environ.get("DB_PASSWORD", "fallback")`                |
+| `.js`, `.mjs` | `(process.env.DB_PASSWORD ?? "fallback")`                  |
+| `.rb`         | `ENV.fetch("DB_PASSWORD", "fallback")`                     |
+| `.lua`        | `(os.getenv("DB_PASSWORD") or "fallback")`                 |
+
+Static data formats, `.env` files, TypeScript and the other statically typed languages cannot express the fallback without changing the type, so they contain the environment variable reference only. The fallback is not embedded, and the consumer of such a file MUST handle the variable being unset. Fallback values come from `settingspec.toml` and are not secret, so omitting or embedding them does not expose environment-sourced values.
+
+`resolve` does not change validation. The settings are still resolved for the active profile as described in section 5.2, so a required environment variable that is missing MUST still cause an error even when `resolve = false`.
+
+`resolve` applies to `export.file` and `export.stdout`. It does not affect `export.env` or `export.stdin`, which always pass resolved values to the child process.
 
 #### `export.stdout`
 
@@ -482,6 +509,37 @@ When exported:
 - TOML and `.env` omit the setting.
 - `null` can only be `true`.
 - `null` cannot be used together with `val` for the same profile.
+
+#### 4.2.1 Setting types
+
+The **type** of a setting is the union of:
+
+- the kinds of its `val` values across all profiles, including `default` (string, integer, float, boolean, array, table; datetimes are strings),
+- string, if any profile has `env`,
+- null, if any profile has `null` (including as an `env` fallback).
+
+A setting that is only ever null is typed as string or null.
+
+Statically typed formats (TypeScript, Rust, Go, Zig, C, C++, Java, Elm, Scala, Haskell) MUST use this type in every profile, so exported types never depend on the active profile. An environment value parsed as a kind outside the type becomes a string (see section 5.2).
+
+Python annotates each setting with the type (`port: str | int | None = 5432`) and keeps the native value. Other formats (TOML, JSON, YAML, `.env`, JavaScript, Ruby, Lua, Terraform) keep native values without annotations.
+
+A single kind without null is just that kind. Otherwise:
+
+| Format                        | One kind plus null           | Several kinds (with or without null)                       |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------- |
+| `.ts`                         | `number \| null`             | `string \| number \| null`                                 |
+| `.rs`                         | `Option<i64>`                | generated `enum PortValue { Str(String), Int(i64), Null }` |
+| `.go`                         | `*int`                       | `any`                                                      |
+| `.zig`                        | `?i64`                       | generated `union(enum)`                                    |
+| `.cpp`, `.hpp`, `.cc`, `.cxx` | `std::optional<long long>`   | `std::variant<std::nullptr_t, std::string, long long>`     |
+| `.java`                       | `java.util.Optional<Long>`   | `Object`                                                   |
+| `.scala`                      | `Option[Long]`               | `Any` (`Option[Any]` with null)                            |
+| `.hs`                         | `Maybe Int`                  | generated `data` type                                      |
+| `.elm`                        | `Maybe Int`                  | generated custom type                                      |
+| `.c`, `.h`                    | `const char*` (strings only) | not supported                                              |
+
+Arrays and tables are supported in a union only by TypeScript, and by Go, Java, and Scala for arrays. Exporting a setting whose type is not supported by the format MUST cause an error.
 
 ### 4.3 Tags
 
@@ -859,6 +917,8 @@ By default, `settingspec run` deletes generated export files when the child proc
 ### 8.3 Keep generated files out of Git
 
 Generated files can contain secrets. They SHOULD be excluded from source control.
+
+Keeping `spec.export.resolve = false` (the default) avoids writing environment-sourced secrets into generated files at all.
 
 SettingSpec automatically adds generated export targets to `.gitignore` adjacent to project root when running inside a Git repository, unless:
 

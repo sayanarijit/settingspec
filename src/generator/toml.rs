@@ -22,6 +22,8 @@ pub fn generate_toml(settings: &[ResolvedSetting]) -> Result<String> {
 fn node_to_toml_value(node: &ConfigNode) -> Option<TomlValue> {
     match node {
         ConfigNode::Null => None,
+        ConfigNode::Env(r) => Some(TomlValue::String(r.name.clone())),
+        ConfigNode::Typed(..) => unreachable!("only produced for statically typed formats"),
         ConfigNode::Value(v) => Some(v.clone()),
         ConfigNode::Map(map) => {
             let mut sub_table = toml::map::Map::new();

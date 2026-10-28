@@ -1,7 +1,10 @@
-use super::common::{format_scalar_literal, is_valid_identifier};
+use super::common::{
+    Leaf, env_name_literal, format_scalar_literal, is_valid_identifier, kind_name, leaf_of,
+    single_kind,
+};
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{ResolvedSetting, TypeShape, ValueKind};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -20,12 +23,11 @@ fn format_rust_scope(map: &IndexMap<String, ConfigNode>, indent_level: usize, ou
     // Leaf/scalar constants first
     for (k, node) in map {
         match node {
-            ConfigNode::Null => {
-                out.push_str(&format!(
-                    "{}pub const {}: Option<&'static str> = None;\n",
-                    indent,
-                    sanitize_rust_identifier(k)
-                ));
+            ConfigNode::Typed(shape, inner) => {
+                format_rust_typed(&sanitize_rust_identifier(k), shape, inner, &indent, out);
+            }
+            ConfigNode::Null | ConfigNode::Env(_) => {
+                unreachable!("nulls and environment references are always typed")
             }
             ConfigNode::Value(v) => match v {
                 TomlValue::Table(_) => {} // Handled in module loop below
@@ -78,6 +80,148 @@ fn format_rust_scope(map: &IndexMap<String, ConfigNode>, indent_level: usize, ou
             _ => {}
         }
     }
+}
+
+/// Emits a setting whose type is shared by all profiles: a constant of type
+/// `T` or `Option<T>` for a single scalar kind, a function if it reads the
+/// environment, or an enum (and a function returning it) for several kinds.
+fn format_rust_typed(
+    name: &str,
+    shape: &TypeShape,
+    inner: &ConfigNode,
+    indent: &str,
+    out: &mut String,
+) {
+    let leaf = leaf_of(inner);
+    let env_name = |r: &crate::model::EnvRef| env_name_literal(&r.name);
+    let scalar_lit = |v: &TomlValue| toml_to_rust_const(v).1;
+
+    if single_kind(shape).is_some() && !shape.has_env {
+        let (base, _) = match &leaf {
+            Some(Leaf::Value(v)) => toml_to_rust_const(v),
+            _ => (rust_kind_type(shape.kinds[0]), String::new()),
+        };
+        let (type_str, val_str) = match leaf {
+            Some(Leaf::Value(v)) => (
+                format!("Option<{}>", base),
+                format!("Some({})", scalar_lit(v)),
+            ),
+            _ => (format!("Option<{}>", base), "None".to_string()),
+        };
+        out.push_str(&format!(
+            "{}pub const {}: {} = {};\n",
+            indent, name, type_str, val_str
+        ));
+        return;
+    }
+
+    if let Some(kind) = single_kind(shape) {
+        // Only strings can come from the environment.
+        debug_assert_eq!(kind, ValueKind::String);
+        let (type_str, body) = match (shape.nullable, leaf) {
+            (true, Some(Leaf::Env(r))) => (
+                "Option<String>",
+                format!("std::env::var({}).ok()", env_name(r)),
+            ),
+            (false, Some(Leaf::Env(r))) => (
+                "String",
+                format!(
+                    "std::env::var({}).expect(\"{} is not set\")",
+                    env_name(r),
+                    r.name
+                ),
+            ),
+            (true, Some(Leaf::Value(v))) => (
+                "Option<String>",
+                format!("Some({}.to_string())", scalar_lit(v)),
+            ),
+            (false, Some(Leaf::Value(v))) => ("String", format!("{}.to_string()", scalar_lit(v))),
+            _ => ("Option<String>", "None".to_string()),
+        };
+        out.push_str(&format!(
+            "{}pub fn {}() -> {} {{\n{}    {}\n{}}}\n",
+            indent, name, type_str, indent, body, indent
+        ));
+        return;
+    }
+
+    let enum_name = format!("{}Value", pascal_case(name));
+    let mut variants: Vec<String> = shape
+        .kinds
+        .iter()
+        .map(|k| format!("{}({})", kind_name(*k), rust_owned_type(*k)))
+        .collect();
+    if shape.nullable {
+        variants.push("Null".to_string());
+    }
+    if !out.ends_with("\n\n") && !out.is_empty() && !out.ends_with("{\n") {
+        out.push('\n');
+    }
+    out.push_str(&format!(
+        "{}#[derive(Debug, Clone, PartialEq)]\n{}pub enum {} {{\n",
+        indent, indent, enum_name
+    ));
+    for v in &variants {
+        out.push_str(&format!("{}    {},\n", indent, v));
+    }
+    out.push_str(&format!("{}}}\n\n", indent));
+
+    let body = match leaf {
+        Some(Leaf::Value(v)) => {
+            let kind = ValueKind::of(v);
+            let lit = match kind {
+                ValueKind::String => format!("{}.to_string()", scalar_lit(v)),
+                _ => scalar_lit(v),
+            };
+            format!("{}::{}({})", enum_name, kind_name(kind), lit)
+        }
+        Some(Leaf::Env(r)) if shape.nullable => format!(
+            "match std::env::var({}) {{ Ok(v) => {}::Str(v), Err(_) => {}::Null }}",
+            env_name(r),
+            enum_name,
+            enum_name
+        ),
+        Some(Leaf::Env(r)) => format!(
+            "{}::Str(std::env::var({}).expect(\"{} is not set\"))",
+            enum_name,
+            env_name(r),
+            r.name
+        ),
+        _ => format!("{}::Null", enum_name),
+    };
+    out.push_str(&format!(
+        "{}pub fn {}() -> {} {{\n{}    {}\n{}}}\n",
+        indent, name, enum_name, indent, body, indent
+    ));
+}
+
+fn rust_kind_type(kind: ValueKind) -> &'static str {
+    match kind {
+        ValueKind::String => "&'static str",
+        ValueKind::Integer => "i64",
+        ValueKind::Float => "f64",
+        ValueKind::Boolean => "bool",
+        ValueKind::Array | ValueKind::Table => unreachable!("rejected before formatting"),
+    }
+}
+
+fn rust_owned_type(kind: ValueKind) -> &'static str {
+    match kind {
+        ValueKind::String => "String",
+        other => rust_kind_type(other),
+    }
+}
+
+fn pascal_case(name: &str) -> String {
+    name.split('_')
+        .filter(|p| !p.is_empty())
+        .map(|p| {
+            let mut c = p.chars();
+            c.next()
+                .map(|f| f.to_ascii_uppercase().to_string() + c.as_str())
+                .unwrap_or_default()
+        })
+        .collect()
 }
 
 fn sanitize_rust_identifier(name: &str) -> String {

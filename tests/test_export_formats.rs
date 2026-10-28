@@ -126,12 +126,12 @@ database.password._.default.null = true
         .success();
 
     let out = temp.child("settings.py");
-    out.assert(predicate::str::contains("top_key = \"top_val\""));
-    out.assert(predicate::str::contains("top_null = None"));
+    out.assert(predicate::str::contains("top_key: str = \"top_val\""));
+    out.assert(predicate::str::contains("top_null: str | None = None"));
     out.assert(predicate::str::contains("class database:"));
-    out.assert(predicate::str::contains("host = \"localhost\""));
-    out.assert(predicate::str::contains("port = 5432"));
-    out.assert(predicate::str::contains("password = None"));
+    out.assert(predicate::str::contains("host: str = \"localhost\""));
+    out.assert(predicate::str::contains("port: int = 5432"));
+    out.assert(predicate::str::contains("password: str | None = None"));
 }
 
 #[test]
@@ -194,7 +194,7 @@ app.debug._.default.null = true
     out.assert(predicate::str::contains("export interface Settings"));
     out.assert(predicate::str::contains("name: string;"));
     out.assert(predicate::str::contains("port: number;"));
-    out.assert(predicate::str::contains("debug: null;"));
+    out.assert(predicate::str::contains("debug: string | null;"));
     out.assert(predicate::str::contains("export default settings;"));
 }
 
@@ -496,7 +496,7 @@ database.password._.default.null = true
     let out = temp.child("settings.go");
     out.assert(predicate::str::contains("package settings"));
     out.assert(predicate::str::contains("Key1 = \"val1\""));
-    out.assert(predicate::str::contains("Key2 any = nil"));
+    out.assert(predicate::str::contains("Key2 *string = nil"));
     out.assert(predicate::str::contains("var Database = struct {"));
     out.assert(predicate::str::contains("Host string"));
     out.assert(predicate::str::contains("Port int"));
@@ -533,11 +533,15 @@ database.password._.default.null = true
 
     let out = temp.child("settings.zig");
     out.assert(predicate::str::contains("pub const key1 = \"val1\";"));
-    out.assert(predicate::str::contains("pub const key2 = null;"));
+    out.assert(predicate::str::contains(
+        "pub const key2: ?[]const u8 = null;",
+    ));
     out.assert(predicate::str::contains("pub const database = struct {"));
     out.assert(predicate::str::contains("pub const host = \"localhost\";"));
     out.assert(predicate::str::contains("pub const port = 5432;"));
-    out.assert(predicate::str::contains("pub const password = null;"));
+    out.assert(predicate::str::contains(
+        "pub const password: ?[]const u8 = null;",
+    ));
 }
 
 #[test]
@@ -615,7 +619,7 @@ database.password._.default.null = true
             "inline constexpr const char* key1 = \"val1\";",
         ));
         out.assert(predicate::str::contains(
-            "inline constexpr std::nullptr_t key2 = nullptr;",
+            "inline const std::optional<std::string> key2 = std::nullopt;",
         ));
         out.assert(predicate::str::contains("namespace database {"));
         out.assert(predicate::str::contains(
@@ -625,7 +629,7 @@ database.password._.default.null = true
             "inline constexpr long long port = 5432;",
         ));
         out.assert(predicate::str::contains(
-            "inline constexpr std::nullptr_t password = nullptr;",
+            "inline const std::optional<std::string> password = std::nullopt;",
         ));
     }
 }
@@ -662,7 +666,7 @@ database.password._.default.null = true
         "public static final String key1 = \"val1\";",
     ));
     out.assert(predicate::str::contains(
-        "public static final Object key2 = null;",
+        "public static final java.util.Optional<String> key2 = java.util.Optional.empty();",
     ));
     out.assert(predicate::str::contains(
         "public static final class database {",
@@ -674,7 +678,7 @@ database.password._.default.null = true
         "public static final long port = 5432L;",
     ));
     out.assert(predicate::str::contains(
-        "public static final Object password = null;",
+        "public static final java.util.Optional<String> password = java.util.Optional.empty();",
     ));
 }
 
@@ -864,4 +868,378 @@ database.password._.default.null = true
     out.assert(predicate::str::contains("host = \"localhost\""));
     out.assert(predicate::str::contains("port = 5432"));
     out.assert(predicate::str::contains("password = null"));
+}
+
+fn export_unresolved(files: &str, settings: &str, env: &[(&str, &str)]) -> assert_fs::TempDir {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(&format!(
+            "[spec]\nexport.file = {{ {} }}\n\n[settings]\n{}",
+            files, settings
+        ))
+        .unwrap();
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path()).arg("export");
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    cmd.assert().success();
+    temp
+}
+
+#[test]
+fn test_resolve_false_static_formats_contain_env_name_only() {
+    let temp = export_unresolved(
+        r#""s.json" = true, "s.toml" = true"#,
+        "pw._.default.env = \"DB_PASSWORD\"\nhost._.default.val = \"localhost\"\n",
+        &[("DB_PASSWORD", "hunter2")],
+    );
+    temp.child("s.json")
+        .assert(predicate::str::contains("\"pw\": \"DB_PASSWORD\""))
+        .assert(predicate::str::contains("\"host\": \"localhost\""))
+        .assert(predicate::str::contains("hunter2").not());
+    temp.child("s.toml")
+        .assert(predicate::str::contains("pw = \"DB_PASSWORD\""))
+        .assert(predicate::str::contains("hunter2").not());
+}
+
+#[test]
+fn test_resolve_false_languages_read_env_at_runtime() {
+    let temp = export_unresolved(
+        r#""s.py" = true, "s.js" = true, "s.rb" = true, "s.lua" = true"#,
+        "pw._.default.env = \"DB_PASSWORD\"\nport._.default.env = \"PORT\"\nport._.default.val = 5432\n",
+        &[("DB_PASSWORD", "hunter2")],
+    );
+    temp.child("s.py")
+        .assert(predicate::str::contains(
+            "from __future__ import annotations",
+        ))
+        .assert(predicate::str::contains("import os"))
+        .assert(predicate::str::contains(
+            "pw: str = os.environ[\"DB_PASSWORD\"]",
+        ))
+        .assert(predicate::str::contains(
+            "port: str | int = os.environ.get(\"PORT\", 5432)",
+        ))
+        .assert(predicate::str::contains("hunter2").not());
+    temp.child("s.js")
+        .assert(predicate::str::contains("\"pw\": process.env.DB_PASSWORD"))
+        .assert(predicate::str::contains(
+            "\"port\": (process.env.PORT ?? 5432)",
+        ));
+    temp.child("s.rb")
+        .assert(predicate::str::contains("PW = ENV[\"DB_PASSWORD\"]"))
+        .assert(predicate::str::contains("PORT = ENV.fetch(\"PORT\", 5432)"));
+    temp.child("s.lua")
+        .assert(predicate::str::contains("pw = os.getenv(\"DB_PASSWORD\")"))
+        .assert(predicate::str::contains(
+            "port = (os.getenv(\"PORT\") or 5432)",
+        ));
+}
+
+#[test]
+fn test_resolve_false_still_requires_env_var() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str("[settings]\npw._.default.env = \"MISSING_PW_VAR\"\n")
+        .unwrap();
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env_remove("MISSING_PW_VAR")
+        .arg("export")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("MISSING_PW_VAR"));
+}
+
+#[test]
+fn test_resolve_false_env_file_uses_shell_reference() {
+    let temp = export_unresolved(
+        r#"".env" = true"#,
+        "pw._.default.env = \"DB_PASSWORD\"\n",
+        &[("DB_PASSWORD", "hunter2")],
+    );
+    temp.child(".env")
+        .assert(predicate::str::contains("PW=${DB_PASSWORD}"))
+        .assert(predicate::str::contains("hunter2").not());
+}
+
+#[test]
+fn test_resolve_false_typed_languages_use_string_for_env_only_settings() {
+    let temp = export_unresolved(
+        r#""s.ts" = true, "s.rs" = true, "s.go" = true, "s.java" = true, "s.scala" = true, "s.cpp" = true, "s.c" = true, "s.zig" = true, "s.hs" = true"#,
+        "pw._.default.env = \"DB_PASSWORD\"\n",
+        &[("DB_PASSWORD", "hunter2")],
+    );
+    let expected = [
+        ("s.ts", "pw: string;"),
+        ("s.ts", "\"pw\": process.env.DB_PASSWORD as string"),
+        ("s.rs", "pub fn pw() -> String"),
+        ("s.rs", "std::env::var(\"DB_PASSWORD\").expect("),
+        ("s.go", "os.Getenv(\"DB_PASSWORD\")"),
+        ("s.java", "public static final String pw = "),
+        ("s.scala", "lazy val pw: String = sys.env(\"DB_PASSWORD\")"),
+        ("s.cpp", "inline const std::string pw = "),
+        ("s.c", "const char* (*pw)(void);"),
+        ("s.zig", "return std.posix.getenv(\"DB_PASSWORD\").?;"),
+        ("s.hs", "pw :: IO String"),
+        ("s.hs", "getEnv \"DB_PASSWORD\""),
+    ];
+    for (file, text) in expected {
+        temp.child(file).assert(predicate::str::contains(text));
+    }
+    for file in [
+        "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.cpp", "s.c", "s.zig", "s.hs",
+    ] {
+        temp.child(file)
+            .assert(predicate::str::contains("hunter2").not());
+    }
+}
+
+#[test]
+fn test_resolve_false_rejects_formats_without_env_access() {
+    for file in ["s.elm", "s.tf"] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.child("settingspec.toml")
+            .write_str(&format!(
+                "[spec]\nexport.file = {{ \"{}\" = true }}\n\n[settings]\npw._.default.env = \"PW\"\n",
+                file
+            ))
+            .unwrap();
+        Command::cargo_bin("settingspec")
+            .unwrap()
+            .current_dir(temp.path())
+            .env("PW", "x")
+            .arg("export")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("spec.export.resolve = true"));
+    }
+}
+
+fn export_profiles(files: &[&str], settings: &str, env: &[(&str, &str)]) -> assert_fs::TempDir {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let file_list: Vec<String> = files.iter().map(|f| format!("\"{}\" = true", f)).collect();
+    temp.child("settingspec.toml")
+        .write_str(&format!(
+            "[spec]\nprofile.options = [\"dev\", \"prod\"]\nprofile.default = \"dev\"\nexport.file = {{ {} }}\n\n[settings]\n{}",
+            file_list.join(", "),
+            settings
+        ))
+        .unwrap();
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path()).arg("export");
+    for (k, v) in env {
+        cmd.env(k, v);
+    }
+    cmd.assert().success();
+    temp
+}
+
+fn assert_contains(temp: &assert_fs::TempDir, expected: &[(&str, &str)]) {
+    for (file, text) in expected {
+        temp.child(file).assert(predicate::str::contains(*text));
+    }
+}
+
+#[test]
+fn test_typed_nullable_env_setting_is_optional_string() {
+    let temp = export_profiles(
+        &[
+            "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp",
+        ],
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.null = true\n",
+        &[("DB_PASSWORD", "hunter2")],
+    );
+    assert_contains(
+        &temp,
+        &[
+            ("s.ts", "pw: string | null;"),
+            ("s.ts", "\"pw\": (process.env.DB_PASSWORD ?? null)"),
+            ("s.rs", "pub fn pw() -> Option<String>"),
+            ("s.go", "Pw *string = func() *string {"),
+            (
+                "s.java",
+                "java.util.Optional<String> pw = java.util.Optional.ofNullable(",
+            ),
+            (
+                "s.scala",
+                "lazy val pw: Option[String] = sys.env.get(\"DB_PASSWORD\")",
+            ),
+            ("s.hs", "pw :: IO (Maybe String)"),
+            ("s.zig", "pub fn pw() ?[]const u8"),
+            ("s.cpp", "inline const std::optional<std::string> pw ="),
+        ],
+    );
+}
+
+#[test]
+fn test_typed_union_of_profile_value_kinds() {
+    // int in default, string from the environment in dev, null in prod.
+    let temp = export_profiles(
+        &[
+            "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp", "s.json",
+        ],
+        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\n",
+        &[("PORT", "8080")],
+    );
+    assert_contains(
+        &temp,
+        &[
+            ("s.ts", "port: string | number | null;"),
+            ("s.ts", "\"port\": (process.env.PORT ?? null)"),
+            ("s.rs", "pub enum PortValue {"),
+            ("s.rs", "    Str(String),"),
+            ("s.rs", "    Int(i64),"),
+            ("s.rs", "    Null,"),
+            ("s.rs", "pub fn port() -> PortValue {"),
+            ("s.go", "Port any = func() any {"),
+            (
+                "s.java",
+                "public static final Object port = System.getenv(\"PORT\");",
+            ),
+            (
+                "s.scala",
+                "lazy val port: Option[Any] = sys.env.get(\"PORT\")",
+            ),
+            (
+                "s.cpp",
+                "std::variant<std::nullptr_t, std::string, long long>",
+            ),
+            ("s.zig", "pub const PortValue = union(enum) {"),
+            ("s.zig", "    str: []const u8,"),
+            ("s.zig", "    none: void,"),
+            (
+                "s.hs",
+                "data SettingsPortValue = SettingsPortValueStr String",
+            ),
+            ("s.hs", "port :: IO SettingsPortValue"),
+            ("s.json", "\"port\": \"PORT\""),
+        ],
+    );
+}
+
+#[test]
+fn test_typed_union_with_resolved_values() {
+    // The same setting, resolved: the active value is a string from the
+    // environment, but the type is still the union.
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(
+            r#"
+[spec]
+profile.options = ["dev", "prod"]
+profile.default = "dev"
+export.resolve = true
+export.file = { "s.ts" = true, "s.rs" = true }
+
+[settings]
+port._.default.val = 5432
+port._.dev.env = "PORT"
+port._.prod.null = true
+"#,
+        )
+        .unwrap();
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("PORT", "8080")
+        .arg("export")
+        .assert()
+        .success();
+    assert_contains(
+        &temp,
+        &[
+            ("s.ts", "port: string | number | null;"),
+            // The environment value was parsed as an integer, like the `val`.
+            ("s.ts", "\"port\": 8080"),
+            ("s.rs", "PortValue::Int(8080)"),
+        ],
+    );
+}
+
+#[test]
+fn test_typed_optional_value_keeps_its_kind() {
+    let temp = export_profiles(
+        &[
+            "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp", "s.elm",
+            "s.json",
+        ],
+        "port._.default.val = 5432\nport._.prod.null = true\n",
+        &[],
+    );
+    assert_contains(
+        &temp,
+        &[
+            ("s.ts", "port: number | null;"),
+            ("s.rs", "pub const port: Option<i64> = Some(5432);"),
+            ("s.go", "Port *int = func() *int { v := 5432; return &v }()"),
+            (
+                "s.java",
+                "java.util.Optional<Long> port = java.util.Optional.of(5432L);",
+            ),
+            ("s.scala", "final val port: Option[Long] = Some(5432L)"),
+            ("s.hs", "port :: Maybe Int"),
+            ("s.hs", "port = Just (5432)"),
+            ("s.zig", "pub const port: ?i64 = 5432;"),
+            (
+                "s.cpp",
+                "inline const std::optional<long long> port = 5432;",
+            ),
+            ("s.elm", "port_ = Just (5432)"),
+            // Data formats keep the native type.
+            ("s.json", "\"port\": 5432"),
+        ],
+    );
+}
+
+#[test]
+fn test_typed_unsupported_shapes_are_rejected() {
+    // C only supports string settings, and Rust has no type for a nullable list.
+    for (file, settings) in [
+        (
+            "s.c",
+            "port._.default.val = 5432\nport._.prod.null = true\n",
+        ),
+        (
+            "s.rs",
+            "list._.default.val = [1, 2]\nlist._.prod.null = true\n",
+        ),
+    ] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.child("settingspec.toml")
+            .write_str(&format!(
+                "[spec]\nprofile.options = [\"dev\", \"prod\"]\nprofile.default = \"dev\"\nexport.file = {{ \"{}\" = true }}\n\n[settings]\n{}",
+                file, settings
+            ))
+            .unwrap();
+        Command::cargo_bin("settingspec")
+            .unwrap()
+            .current_dir(temp.path())
+            .arg("export")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("cannot be expressed"));
+    }
+}
+
+#[test]
+fn test_python_type_hints_are_the_union_of_profile_types() {
+    let temp = export_profiles(
+        &["s.py"],
+        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\nname._.default.val = \"x\"\ntags._.default.val = [\"a\"]\n",
+        &[("PORT", "8080")],
+    );
+    assert_contains(
+        &temp,
+        &[
+            (
+                "s.py",
+                "port: str | int | None = os.environ[\"PORT\"]",
+            ),
+            ("s.py", "name: str = \"x\""),
+            ("s.py", "tags: list = [\"a\"]"),
+        ],
+    );
 }

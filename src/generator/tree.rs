@@ -1,4 +1,4 @@
-use crate::model::{ResolvedSetting, SettingValue};
+use crate::model::{EnvRef, ResolvedSetting, SettingValue, TypeShape};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -6,6 +6,9 @@ use toml::Value as TomlValue;
 pub enum ConfigNode {
     Null,
     Value(TomlValue),
+    Env(EnvRef),
+    /// A value with the type shared by all profiles of its setting.
+    Typed(TypeShape, Box<ConfigNode>),
     Map(IndexMap<String, ConfigNode>),
 }
 
@@ -43,17 +46,24 @@ fn insert_into_tree(root: &mut IndexMap<String, ConfigNode>, parts: &[&str], val
 
     let head = parts[0];
     if parts.len() == 1 {
-        let node = match value {
-            SettingValue::Null => ConfigNode::Null,
-            SettingValue::Value(v) => ConfigNode::Value(v.clone()),
-        };
-        root.insert(head.to_string(), node);
+        root.insert(head.to_string(), to_node(value));
     } else {
         let sub = root
             .entry(head.to_string())
             .or_insert_with(|| ConfigNode::Map(IndexMap::new()));
         if let ConfigNode::Map(sub_map) = sub {
             insert_into_tree(sub_map, &parts[1..], value);
+        }
+    }
+}
+
+fn to_node(value: &SettingValue) -> ConfigNode {
+    match value {
+        SettingValue::Null => ConfigNode::Null,
+        SettingValue::Value(v) => ConfigNode::Value(v.clone()),
+        SettingValue::Env(r) => ConfigNode::Env(r.clone()),
+        SettingValue::Typed(shape, inner) => {
+            ConfigNode::Typed(shape.clone(), Box::new(to_node(inner)))
         }
     }
 }

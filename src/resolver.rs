@@ -16,8 +16,9 @@ fn lookup_env(env_overrides: &HashMap<String, String>, key: &str) -> Option<Stri
 
 /// Outcome of resolving a single profile declaration to a setting value.
 enum DeclResolution {
-    /// The declaration produced a concrete value (or explicit null).
-    Value(SettingValue),
+    /// The declaration produced a concrete value (or explicit null), along
+    /// with the environment variable reference if it has an `env` directive.
+    Value(SettingValue, Option<EnvRef>),
     /// The declaration requires an environment variable that is not set,
     /// and has no `null`/`val` fallback of its own.
     MissingEnv(String),
@@ -33,20 +34,35 @@ fn resolve_declaration(
     fallback_val: Option<&TomlValue>,
     env_overrides: &HashMap<String, String>,
 ) -> DeclResolution {
+    let own_fallback = if decl.null {
+        Some(EnvFallback::Null)
+    } else {
+        decl.val.clone().map(EnvFallback::Value)
+    };
+
     if let Some(ref env_var) = decl.env {
+        let env_ref = Some(EnvRef {
+            name: env_var.clone(),
+            fallback: own_fallback.clone(),
+        });
         if let Some(env_val) = lookup_env(env_overrides, env_var) {
-            DeclResolution::Value(SettingValue::Value(parse_env_value(&env_val, fallback_val)))
-        } else if decl.null {
-            DeclResolution::Value(SettingValue::Null)
-        } else if let Some(ref v) = decl.val {
-            DeclResolution::Value(SettingValue::Value(v.clone()))
+            DeclResolution::Value(
+                SettingValue::Value(parse_env_value(&env_val, fallback_val)),
+                env_ref,
+            )
+        } else if let Some(fb) = own_fallback {
+            let value = match fb {
+                EnvFallback::Null => SettingValue::Null,
+                EnvFallback::Value(v) => SettingValue::Value(v),
+            };
+            DeclResolution::Value(value, env_ref)
         } else {
             DeclResolution::MissingEnv(env_var.clone())
         }
     } else if decl.null {
-        DeclResolution::Value(SettingValue::Null)
+        DeclResolution::Value(SettingValue::Null, None)
     } else if let Some(ref v) = decl.val {
-        DeclResolution::Value(SettingValue::Value(v.clone()))
+        DeclResolution::Value(SettingValue::Value(v.clone()), None)
     } else {
         DeclResolution::None
     }
@@ -64,7 +80,7 @@ pub fn resolve_settings(
         let profile_decl = active_profile.and_then(|p| setting.profiles.get(p));
         let default_decl = setting.profiles.get("default");
 
-        let mut final_val: Option<SettingValue> = None;
+        let mut final_val: Option<(SettingValue, Option<EnvRef>)> = None;
         let mut missing_env_error: Option<String> = None;
 
         // Step 1: Check active profile declaration
@@ -74,7 +90,7 @@ pub fn resolve_settings(
                 .as_ref()
                 .or_else(|| default_decl.and_then(|d| d.val.as_ref()));
             match resolve_declaration(decl, fallback, env_overrides) {
-                DeclResolution::Value(v) => final_val = Some(v),
+                DeclResolution::Value(v, env_ref) => final_val = Some((v, env_ref)),
                 DeclResolution::MissingEnv(env_var) => missing_env_error = Some(env_var),
                 DeclResolution::None => {}
             }
@@ -84,7 +100,7 @@ pub fn resolve_settings(
         if final_val.is_none() {
             if let Some(decl) = default_decl {
                 match resolve_declaration(decl, decl.val.as_ref(), env_overrides) {
-                    DeclResolution::Value(v) => final_val = Some(v),
+                    DeclResolution::Value(v, env_ref) => final_val = Some((v, env_ref)),
                     DeclResolution::MissingEnv(env_var) => {
                         return Err(SettingSpecError::MissingRequiredEnvVar(
                             key.clone(),
@@ -116,17 +132,42 @@ pub fn resolve_settings(
         }
 
         let tags = setting.tags.clone();
+        let shape = type_shape(setting);
 
-        if let Some(val) = final_val {
+        if let Some((val, env_ref)) = final_val {
             resolved.push(ResolvedSetting {
                 key: key.clone(),
                 value: val,
                 tags,
+                env_ref,
+                shape,
             });
         }
     }
 
     Ok(resolved)
+}
+
+fn type_shape(setting: &Setting) -> TypeShape {
+    let mut kinds = Vec::new();
+    for decl in setting.profiles.values() {
+        if let Some(ref v) = decl.val {
+            kinds.push(ValueKind::of(v));
+        }
+        if decl.env.is_some() {
+            kinds.push(ValueKind::String);
+        }
+    }
+    kinds.sort();
+    kinds.dedup();
+    if kinds.is_empty() {
+        kinds.push(ValueKind::String);
+    }
+    TypeShape {
+        kinds,
+        nullable: setting.profiles.values().any(|d| d.null),
+        has_env: setting.profiles.values().any(|d| d.env.is_some()),
+    }
 }
 
 fn parse_env_value(raw: &str, fallback_val: Option<&TomlValue>) -> TomlValue {

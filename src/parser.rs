@@ -1,7 +1,7 @@
 use crate::error::{Result, SettingSpecError};
 use crate::model::*;
-use serde::de::IntoDeserializer;
 use serde::Deserialize;
+use serde::de::IntoDeserializer;
 use std::collections::{BTreeMap, HashSet};
 use toml::Value as TomlValue;
 
@@ -33,8 +33,8 @@ fn find_first_leaf_path(val: &TomlValue, path: &mut Vec<String>) {
 }
 
 pub fn parse_config_str(content: &str) -> Result<SettingSpecDocument> {
-    let schema: SettingSpecSchema = toml::from_str(content)
-        .map_err(|e| SettingSpecError::InvalidToml(e.to_string()))?;
+    let schema: SettingSpecSchema =
+        toml::from_str(content).map_err(|e| SettingSpecError::InvalidToml(e.to_string()))?;
 
     let spec = schema.spec.unwrap_or_default();
 
@@ -185,9 +185,8 @@ fn extract_settings(
                     return Err(SettingSpecError::DuplicateTags(setting_key.clone()));
                 }
 
-                let tags_vec: Vec<String> =
-                    Vec::deserialize(v.clone().into_deserializer())
-                        .map_err(|e| SettingSpecError::InvalidToml(e.to_string()))?;
+                let tags_vec: Vec<String> = Vec::deserialize(v.clone().into_deserializer())
+                    .map_err(|e| SettingSpecError::InvalidToml(e.to_string()))?;
 
                 let entry = settings
                     .entry(setting_key.clone())

@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::BTreeMap;
 use toml::Value as TomlValue;
@@ -47,17 +48,41 @@ impl<'de> Deserialize<'de> for EnvFileConfig {
     where
         D: Deserializer<'de>,
     {
-        let map = BTreeMap::<String, String>::deserialize(deserializer)?;
-        let mut default = None;
-        let mut profiles = BTreeMap::new();
-        for (k, v) in map {
-            if k == "default" {
-                default = Some(v);
-            } else {
-                profiles.insert(k, v);
+        struct EnvFileVisitor;
+
+        impl<'de> Visitor<'de> for EnvFileVisitor {
+            type Value = EnvFileConfig;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string or a table of strings")
+            }
+
+            // `envfile = ".env"` is shorthand for `envfile.default = ".env"`.
+            fn visit_str<E: de::Error>(self, v: &str) -> std::result::Result<Self::Value, E> {
+                Ok(EnvFileConfig {
+                    default: Some(v.to_string()),
+                    profiles: BTreeMap::new(),
+                })
+            }
+
+            fn visit_map<A: MapAccess<'de>>(
+                self,
+                mut access: A,
+            ) -> std::result::Result<Self::Value, A::Error> {
+                let mut default = None;
+                let mut profiles = BTreeMap::new();
+                while let Some((k, v)) = access.next_entry::<String, String>()? {
+                    if k == "default" {
+                        default = Some(v);
+                    } else {
+                        profiles.insert(k, v);
+                    }
+                }
+                Ok(EnvFileConfig { default, profiles })
             }
         }
-        Ok(EnvFileConfig { default, profiles })
+
+        deserializer.deserialize_any(EnvFileVisitor)
     }
 }
 
@@ -296,6 +321,8 @@ struct ExportConfigSchema {
     pub mode: u32,
     #[serde(default)]
     pub keep: bool,
+    #[serde(default)]
+    pub resolve: bool,
     #[serde(default, deserialize_with = "deserialize_export_stdout")]
     pub stdout: Option<ExportStdoutSpec>,
     #[serde(default, deserialize_with = "deserialize_export_file")]
@@ -312,6 +339,7 @@ struct ExportConfigSchema {
 pub struct ExportConfig {
     pub mode: u32,
     pub keep: bool,
+    pub resolve: bool,
     pub stdout: Option<String>,
     pub file: IndexMap<String, ExportFilter>,
     pub env: Option<String>,
@@ -326,6 +354,7 @@ impl Default for ExportConfig {
         Self {
             mode: default_export_mode(),
             keep: false,
+            resolve: false,
             stdout: None,
             file,
             env: None,
@@ -370,6 +399,7 @@ impl<'de> Deserialize<'de> for ExportConfig {
         Ok(ExportConfig {
             mode: schema.mode,
             keep: schema.keep,
+            resolve: schema.resolve,
             stdout,
             file,
             env,
@@ -464,6 +494,12 @@ pub struct Setting {
 pub enum SettingValue {
     Null,
     Value(TomlValue),
+    /// A reference to an environment variable, used by exports when
+    /// `spec.export.resolve` is `false`.
+    Env(EnvRef),
+    /// A value together with the type shared by all profiles of its setting,
+    /// used by statically typed exports.
+    Typed(TypeShape, Box<SettingValue>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -471,6 +507,59 @@ pub struct ResolvedSetting {
     pub key: String,
     pub value: SettingValue,
     pub tags: Vec<String>,
+    /// Set when the value was selected through an `env` directive, so exports
+    /// can reference the variable instead of embedding its resolved value.
+    pub env_ref: Option<EnvRef>,
+    pub shape: TypeShape,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum ValueKind {
+    String,
+    Integer,
+    Float,
+    Boolean,
+    Array,
+    Table,
+}
+
+impl ValueKind {
+    pub fn of(v: &TomlValue) -> Self {
+        match v {
+            TomlValue::String(_) | TomlValue::Datetime(_) => Self::String,
+            TomlValue::Integer(_) => Self::Integer,
+            TomlValue::Float(_) => Self::Float,
+            TomlValue::Boolean(_) => Self::Boolean,
+            TomlValue::Array(_) => Self::Array,
+            TomlValue::Table(_) => Self::Table,
+        }
+    }
+}
+
+/// The type of a setting across all of its profiles: the union of the kinds
+/// of its `val` values, plus string if any profile reads an environment
+/// variable, plus null if any profile declares `null`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeShape {
+    /// Sorted and without duplicates. Never empty; a setting that is only
+    /// ever null is typed as an optional string.
+    pub kinds: Vec<ValueKind>,
+    pub nullable: bool,
+    /// Whether any profile reads an environment variable.
+    pub has_env: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EnvRef {
+    pub name: String,
+    /// The `val`/`null` fallback declared next to the `env` directive.
+    pub fallback: Option<EnvFallback>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum EnvFallback {
+    Null,
+    Value(TomlValue),
 }
 
 #[derive(Clone, Default, Serialize)]

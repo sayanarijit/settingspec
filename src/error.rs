@@ -23,6 +23,8 @@ pub enum SettingSpecError {
     EnvFileNotFound(String),
     DecryptionFailed(String, String), // profile, file
     InvalidExportFormat(String),
+    UnresolvedExportUnsupported(String, String), // format, setting key
+    UnsupportedType(String, String),             // format, setting key
     IoError(String),
     CommandFailed(i32),
 }
@@ -112,6 +114,16 @@ impl fmt::Display for SettingSpecError {
                 file, profile
             ),
             Self::InvalidExportFormat(fmt) => write!(f, "Unsupported export format: '{}'", fmt),
+            Self::UnresolvedExportUnsupported(fmt, key) => write!(
+                f,
+                "Setting '{}' reads an environment variable, which '{}' exports cannot reference; set spec.export.resolve = true",
+                key, fmt
+            ),
+            Self::UnsupportedType(fmt, key) => write!(
+                f,
+                "The type of setting '{}' (a union, optional, or environment-backed value) cannot be expressed in '{}' exports",
+                key, fmt
+            ),
             Self::IoError(msg) => write!(f, "I/O error: {}", msg),
             Self::CommandFailed(code) => write!(f, "Child command exited with code {}", code),
         }

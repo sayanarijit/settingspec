@@ -200,8 +200,8 @@ Too simple? Use [Cottage](https://cottage-cli.pages.dev) or [agebox](https://git
 
 ```toml
 [spec]
-envfile.default = ".env.cott.age"
-# envfile.default = ".env.agebox"
+envfile = ".env.cott.age"
+# envfile = ".env.agebox"
 
 decryption.key.path = "~/.config/cottage/identity:~/.ssh"
 decryption.key.env = "COTTAGE_IDENTITY"

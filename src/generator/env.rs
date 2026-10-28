@@ -28,6 +28,10 @@ pub fn generate_env(settings: &[ResolvedSetting]) -> Result<String> {
         }
 
         let key = format_env_key(&setting.key);
+        if let SettingValue::Env(ref r) = setting.value {
+            out.push_str(&format!("{}=${{{}}}\n", key, r.name));
+            continue;
+        }
         if let SettingValue::Value(ref val) = setting.value {
             let val_str = match val {
                 TomlValue::String(s) => {

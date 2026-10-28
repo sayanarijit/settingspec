@@ -1,7 +1,9 @@
-use super::common::{format_scalar_literal, is_valid_identifier};
+use super::common::{
+    Leaf, env_name_literal, format_scalar_literal, is_valid_identifier, leaf_of, single_kind,
+};
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{ResolvedSetting, TypeShape, ValueKind};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -20,11 +22,20 @@ fn format_scala_scope(map: &IndexMap<String, ConfigNode>, indent_level: usize, o
     for (k, node) in map {
         let field_name = sanitize_scala_identifier(k);
         match node {
-            ConfigNode::Null => {
+            ConfigNode::Typed(shape, inner) => {
+                let (type_str, val_str) = scala_typed(shape, inner);
+                let modifier = if shape.has_env {
+                    "lazy val"
+                } else {
+                    "final val"
+                };
                 out.push_str(&format!(
-                    "{}final val {}: Option[String] = None\n",
-                    indent, field_name
+                    "{}{} {}: {} = {}\n",
+                    indent, modifier, field_name, type_str, val_str
                 ));
+            }
+            ConfigNode::Null | ConfigNode::Env(_) => {
+                unreachable!("nulls and environment references are always typed")
             }
             ConfigNode::Value(v) => match v {
                 TomlValue::Table(_) => {} // Handled in object loop below
@@ -136,6 +147,49 @@ fn sanitize_scala_identifier(name: &str) -> String {
             name.replace(|c: char| !c.is_ascii_alphanumeric(), "_")
         )
     }
+}
+
+/// The Scala type and value expression of a value whose type is shared by all
+/// profiles: `T` for a single scalar kind, otherwise `Any`, wrapped in
+/// `Option` if the setting is nullable.
+fn scala_typed(shape: &TypeShape, inner: &ConfigNode) -> (String, String) {
+    let scalar = single_kind(shape).and_then(|k| match k {
+        ValueKind::String => Some("String"),
+        ValueKind::Integer => Some("Long"),
+        ValueKind::Float => Some("Double"),
+        ValueKind::Boolean => Some("Boolean"),
+        ValueKind::Array | ValueKind::Table => None,
+    });
+    let base = scalar.unwrap_or("Any");
+    let type_str = if shape.nullable {
+        format!("Option[{}]", base)
+    } else {
+        base.to_string()
+    };
+
+    let value = match leaf_of(inner) {
+        Some(Leaf::Value(v)) => {
+            let lit = match v {
+                TomlValue::Array(arr) => scala_array_literal(arr).1,
+                _ => toml_to_scala_const(v).1,
+            };
+            if shape.nullable {
+                format!("Some({})", lit)
+            } else {
+                lit
+            }
+        }
+        Some(Leaf::Env(r)) => {
+            let name = env_name_literal(&r.name);
+            if shape.nullable {
+                format!("sys.env.get({})", name)
+            } else {
+                format!("sys.env({})", name)
+            }
+        }
+        _ => "None".to_string(),
+    };
+    (type_str, value)
 }
 
 fn toml_to_scala_const(v: &TomlValue) -> (&'static str, String) {

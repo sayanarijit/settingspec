@@ -1,7 +1,7 @@
 use super::common::{format_scalar_literal, is_valid_identifier};
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{EnvFallback, EnvRef, ResolvedSetting};
 use indexmap::IndexMap;
 use toml::Value as TomlValue;
 
@@ -29,6 +29,15 @@ fn format_lua_table(map: &IndexMap<String, ConfigNode>, indent_level: usize, out
             ConfigNode::Null => {
                 out.push_str(&format!("{}{} = nil,\n", inner_indent, key_str));
             }
+            ConfigNode::Typed(..) => unreachable!("only produced for statically typed formats"),
+            ConfigNode::Env(r) => {
+                out.push_str(&format!(
+                    "{}{} = {},\n",
+                    inner_indent,
+                    key_str,
+                    env_expression(r)
+                ));
+            }
             ConfigNode::Value(v) => {
                 out.push_str(&format!(
                     "{}{} = {},\n",
@@ -55,7 +64,7 @@ fn sanitize_lua_key(key: &str) -> String {
     }
 }
 
-fn toml_to_lua_literal(v: &TomlValue) -> String {
+pub(super) fn toml_to_lua_literal(v: &TomlValue) -> String {
     if let Some(literal) = format_scalar_literal(v) {
         return literal;
     }
@@ -79,5 +88,15 @@ fn toml_to_lua_literal(v: &TomlValue) -> String {
             format!("{{ {} }}", items.join(", "))
         }
         _ => unreachable!("scalars are handled by format_scalar_literal"),
+    }
+}
+
+pub(super) fn env_expression(r: &EnvRef) -> String {
+    let name = serde_json::to_string(&r.name).unwrap();
+    match &r.fallback {
+        None | Some(EnvFallback::Null) => format!("os.getenv({})", name),
+        Some(EnvFallback::Value(v)) => {
+            format!("(os.getenv({}) or {})", name, toml_to_lua_literal(v))
+        }
     }
 }

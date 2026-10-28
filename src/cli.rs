@@ -290,14 +290,18 @@ fn perform_export(ctx: &ExecutionContext) -> Result<Vec<PathBuf>> {
             .collect();
 
         let path = Path::new(file_path_str);
-        let output = generate_by_path(path, &filtered_settings)?;
+        let output = generate_by_path(path, &filtered_settings, ctx.doc.spec.export.resolve)?;
         write_export_file(path, &output, ctx.doc.spec.export.mode)?;
         generated_files.push(path.to_path_buf());
     }
 
     // 2. Stdout export if configured
     if let Some(ref stdout_fmt) = ctx.doc.spec.export.stdout {
-        let output = generate_by_format(stdout_fmt, &ctx.resolved_settings)?;
+        let output = generate_by_format(
+            stdout_fmt,
+            &ctx.resolved_settings,
+            ctx.doc.spec.export.resolve,
+        )?;
         print!("{}", output);
     }
 
@@ -329,7 +333,7 @@ fn execute_run(ctx: &ExecutionContext, command_args: &[String]) -> Result<()> {
     })?;
 
     let stdin_payload = if let Some(ref stdin_fmt) = ctx.doc.spec.export.stdin {
-        Some(generate_by_format(stdin_fmt, &ctx.resolved_settings)?)
+        Some(generate_by_format(stdin_fmt, &ctx.resolved_settings, true)?)
     } else {
         None
     };

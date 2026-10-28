@@ -1,14 +1,23 @@
 use super::tree::{ConfigNode, build_config_tree};
 use crate::error::Result;
-use crate::model::ResolvedSetting;
+use crate::model::{EnvRef, ResolvedSetting};
 use serde_json::{Map, Value as JsonValue};
 
 pub fn generate_json(settings: &[ResolvedSetting]) -> Result<String> {
+    generate_json_with_env(settings, &mut |r, _| JsonValue::String(r.name.clone()))
+}
+
+/// Like `generate_json`, but `env` decides what value stands in for each
+/// environment variable reference.
+pub fn generate_json_with_env(
+    settings: &[ResolvedSetting],
+    env: &mut dyn FnMut(&EnvRef, bool) -> JsonValue,
+) -> Result<String> {
     let tree = build_config_tree(settings, false); // keep nulls
     let mut root_obj = Map::new();
 
     for (k, node) in tree {
-        root_obj.insert(k, node_to_json_value(&node));
+        root_obj.insert(k, node_to_json_value(&node, env));
     }
 
     let json_val = JsonValue::Object(root_obj);
@@ -17,14 +26,23 @@ pub fn generate_json(settings: &[ResolvedSetting]) -> Result<String> {
     Ok(serialized)
 }
 
-fn node_to_json_value(node: &ConfigNode) -> JsonValue {
+fn node_to_json_value(
+    node: &ConfigNode,
+    env: &mut dyn FnMut(&EnvRef, bool) -> JsonValue,
+) -> JsonValue {
     match node {
         ConfigNode::Null => JsonValue::Null,
+        ConfigNode::Env(r) => env(r, false),
+        // The nullability of a typed environment reference reaches `env`.
+        ConfigNode::Typed(shape, inner) => match inner.as_ref() {
+            ConfigNode::Env(r) => env(r, shape.nullable),
+            other => node_to_json_value(other, env),
+        },
         ConfigNode::Value(v) => toml_to_json_value(v),
         ConfigNode::Map(map) => {
             let mut obj = Map::new();
             for (k, sub_node) in map {
-                obj.insert(k.clone(), node_to_json_value(sub_node));
+                obj.insert(k.clone(), node_to_json_value(sub_node, env));
             }
             JsonValue::Object(obj)
         }
