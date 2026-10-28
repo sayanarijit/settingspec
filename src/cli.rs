@@ -170,8 +170,8 @@ pub fn run_cli() -> Result<()> {
     match cli.command {
         Commands::Init => init_config(),
         Commands::Check => {
-            load_and_resolve()?;
-            Ok(())
+            let ctx = load_and_resolve()?;
+            validate_exports(&ctx)
         }
         Commands::Export => {
             let ctx = load_and_resolve()?;
@@ -266,6 +266,31 @@ fn run_watch() -> Result<()> {
     }
 
     eprintln!("Exiting watch mode.");
+    Ok(())
+}
+
+/// Generates every configured export in memory, without writing anything, so
+/// that unsupported combinations are reported by `check`.
+fn validate_exports(ctx: &ExecutionContext) -> Result<()> {
+    let resolve = ctx.doc.spec.export.resolve;
+
+    for (file_path_str, filter) in &ctx.doc.spec.export.file {
+        if *filter == ExportFilter::Disabled {
+            continue;
+        }
+        let filtered_settings: Vec<ResolvedSetting> = ctx
+            .resolved_settings
+            .iter()
+            .filter(|s| matches_filter(filter, s))
+            .cloned()
+            .collect();
+        generate_by_path(Path::new(file_path_str), &filtered_settings, resolve)?;
+    }
+
+    if let Some(ref stdout_fmt) = ctx.doc.spec.export.stdout {
+        generate_by_format(stdout_fmt, &ctx.resolved_settings, resolve)?;
+    }
+
     Ok(())
 }
 
