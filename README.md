@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img alt="The settingspec cover" width="100%" src="https://s15.gifyu.com/images/buXZJ.png">
+    <img alt="The SettingSpec promo" width="100%" src="https://s15.gifyu.com/images/bWl2x.gif">
   </picture>
 </p>
 
@@ -10,6 +10,8 @@
 [![NPM Version](https://img.shields.io/npm/v/%40sayanarijit%2Fsettingspec)](https://www.npmjs.com/package/@sayanarijit/settingspec)
 
 # SettingSpec
+
+Don't program your settings. Specify • Validate • Export - in any format.
 
 1. [Install](#install)
 2. [Concepts](#concepts)

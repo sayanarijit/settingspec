@@ -1,6 +1,6 @@
 [book]
 title = "SettingSpec"
-description = "One file for all environments, all languages, all submodules."
+description = "Don't program your settings. Specify • Validate • Export - in any format."
 authors = ["Arijit Basu"]
 language = "en"
 

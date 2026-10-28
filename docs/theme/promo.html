@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SettingSpec — Promotional Video</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #060911;
+            --card-bg: rgba(15, 21, 35, 0.85);
+            --border-glow: rgba(56, 189, 248, 0.25);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .logo-font {
+            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            letter-spacing: -0.03em;
+        }
+
+        /* Cinematic Background Grid & Glows */
+        .bg-grid {
+            background-size: 48px 48px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            mask-image: radial-gradient(circle at center, black 45%, transparent 95%);
+        }
+
+        /* Scene Transitions */
+        .scene {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2vh 1.5rem;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.92) translateY(20px);
+            filter: blur(10px);
+            transition: 
+                opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                filter 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .scene.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1) translateY(0);
+            filter: blur(0px);
+            z-index: 10;
+        }
+
+        .scene.exit-left {
+            opacity: 0;
+            transform: scale(1.06) translateY(-15px);
+            filter: blur(12px);
+        }
+
+        /* Code Window Styling */
+        .ide-window {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.85),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 0 40px -10px var(--window-glow, rgba(56, 189, 248, 0.15));
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .ide-window.error-shake {
+            --window-glow: rgba(239, 68, 68, 0.45);
+            border-color: rgba(239, 68, 68, 0.5);
+            animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        /* Wavy red typo underline */
+        .typo-error {
+            text-decoration-line: underline;
+            text-decoration-style: wavy;
+            text-decoration-color: #ef4444;
+            text-underline-offset: 4px;
+            position: relative;
+        }
+
+        /* Code Line Stagger Reveal */
+        .code-line {
+            opacity: 0;
+            transform: translateX(-8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .code-line.revealed {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Extension Badge Pop */
+        .ext-pill {
+            display: inline-block;
+            transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .ext-pill.pop {
+            transform: scale(1.16) translateY(-2px);
+        }
+
+        /* Gear slow spin on finale */
+        @keyframes gearFloat {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .gear-spin {
+            transform-origin: 230px 218px;
+            animation: gearFloat 24s linear infinite;
+        }
+
+        /* Blinking Cursor */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen m-0 p-0 overflow-hidden bg-[#060911] relative select-none">
+
+    <!-- Full-Bleed Edge-to-Edge Video Stage (No Controls, No Rounded Outer Edges) -->
+    <main class="relative w-screen h-screen overflow-hidden flex items-center justify-center z-10">
+
+        <!-- Ambient Animated Backdrop -->
+        <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+            <div id="ambient-orb-1" class="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-500/15 blur-[130px] transition-all duration-1000"></div>
+            <div id="ambient-orb-2" class="absolute -bottom-32 -right-32 w-[28rem] h-[28rem] rounded-full bg-blue-600/15 blur-[140px] transition-all duration-1000"></div>
+            <div class="absolute inset-0 bg-grid"></div>
+        </div>
+
+        <!-- ==========================================
+             SCREEN 1: Don't program your settings ❌
+        =========================================== -->
+        <section id="scene-0" class="scene">
+            <!-- Code Window -->
+            <div id="win-scene-0" class="ide-window w-full max-w-xl rounded-xl overflow-hidden flex flex-col shrink-0">
+                <!-- Window Titlebar -->
+                <div class="flex items-center justify-between px-4 py-2 bg-slate-900/90 border-b border-slate-800/80 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500/90"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400/90"></span>
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/90"></span>
+                    </div>
+                    <div class="text-[11px] code-font text-slate-400 flex items-center gap-1.5">
+                        <span class="text-sky-400">🐍</span> config_loader.py
+                    </div>
+                    <div id="s1-error-pill" class="opacity-0 transition-opacity duration-300 text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        Fragile Boilerplate
+                    </div>
+                </div>
+
+                <!-- Code Content -->
+                <div class="px-5 py-3 text-xs sm:text-[13px] leading-[1.35] code-font overflow-hidden relative">
+                    <div id="s1-code-lines" class="flex flex-col">
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 1</span><span class="text-purple-400">import</span> <span class="text-slate-200">os</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 2</span><span class="text-purple-400">import</span> <span class="text-slate-200">toml</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 3</span><span class="text-purple-400">from</span> <span class="text-slate-200">expandvars</span> <span class="text-purple-400">import</span> <span class="text-sky-300">expandvars</span></div>
+                        <div class="code-line h-2"><span class="text-slate-600 select-none mr-3"> 4</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 5</span><span class="text-purple-400">with</span> <span class="text-sky-300">open</span>(<span class="text-emerald-400">"default_settings.toml"</span>) <span class="text-purple-400">as</span> f:</div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 6</span>    settings <span class="text-sky-400">=</span> toml.<span class="text-sky-300">load</span>(f)</div>
+                        <div class="code-line h-2"><span class="text-slate-600 select-none mr-3"> 7</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 8</span><span class="text-purple-400">if</span> os.environ.<span class="text-sky-300">get</span>(<span class="text-emerald-400">"ENV"</span>) <span class="text-sky-400">==</span> <span class="text-emerald-400">"staging"</span>:</div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3"> 9</span>    <span class="text-purple-400">with</span> <span class="text-sky-300">open</span>(<span class="text-emerald-400">"staging_settings.toml"</span>) <span class="text-purple-400">as</span> f:</div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3">10</span>        settings.<span class="text-sky-300">update</span>(toml.<span class="text-sky-300">load</span>(f))</div>
+                        <div class="code-line h-2"><span class="text-slate-600 select-none mr-3">11</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3">12</span><span class="text-purple-400">elif</span> os.environ.<span class="text-sky-300">get</span>(<span class="text-emerald-400">"ENV"</span>) <span class="text-sky-400">==</span> <span class="text-emerald-400">"production"</span>:</div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3">13</span>    <span class="text-purple-400">with</span> <span class="text-sky-300">open</span>(<span class="text-emerald-400">"production_settings.toml"</span>) <span class="text-purple-400">as</span> f:</div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3">14</span>        settings.<span class="text-sky-300">update</span>(toml.<span class="text-sky-300">load</span>(f))</div>
+                        <div class="code-line h-2"><span class="text-slate-600 select-none mr-3">15</span></div>
+                        <div class="code-line"><span class="text-slate-600 select-none mr-3">16</span><span id="s1-typo" class="text-slate-100">setings</span> <span class="text-sky-400">=</span> <span class="text-sky-300">expandvars</span>(settings)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tagline 1 -->
+            <div id="tagline-0" class="mt-6 text-center transform translate-y-4 opacity-0 transition-all duration-500 shrink-0">
+                <h2 class="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+                    Don't <span class="text-rose-400 underline decoration-rose-500/60 decoration-wavy underline-offset-4">program</span> your settings <span class="inline-block ml-1">❌</span>
+                </h2>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 2: Specify them 📝
+        =========================================== -->
+        <section id="scene-1" class="scene">
+            <div class="ide-window w-full max-w-xl rounded-2xl overflow-hidden" style="--window-glow: rgba(56, 189, 248, 0.3);">
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-900/90 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-rose-500/90"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-400/90"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500/90"></span>
+                    </div>
+                    <div class="text-xs code-font text-slate-300 flex items-center gap-1.5">
+                        <span class="text-amber-400">⚙</span> settingspec.toml
+                    </div>
+                    <span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                        Declarative
+                    </span>
+                </div>
+
+                <div class="p-6 sm:p-8 text-sm sm:text-base md:text-lg leading-relaxed code-font" id="s2-code-lines">
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">1</span><span class="text-sky-400 font-bold">[spec]</span></div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">2</span><span class="text-indigo-300">profile.options</span> <span class="text-sky-400">=</span> [<span class="text-emerald-400">"local"</span>, <span class="text-emerald-400">"prod"</span>]</div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">3</span><span class="text-indigo-300">profile.default</span> <span class="text-sky-400">=</span> <span class="text-emerald-400">"local"</span></div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">4</span></div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">5</span><span class="text-sky-400 font-bold">[settings]</span></div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">6</span><span class="text-amber-300 font-semibold">HOST._</span> <span class="text-sky-400">=</span> {</div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">7</span>    <span class="text-indigo-300">local.val</span> <span class="text-sky-400">=</span> <span class="text-emerald-400">"localhost"</span>,</div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">8</span>    <span class="text-indigo-300">prod.val</span> <span class="text-sky-400">=</span> <span class="text-emerald-400">"0.0.0.0"</span>,</div>
+                    <div class="code-line"><span class="text-slate-600 select-none mr-4">9</span>}</div>
+                </div>
+            </div>
+
+            <!-- Tagline 2 -->
+            <div id="tagline-1" class="mt-8 text-center transform translate-y-4 opacity-0 transition-all duration-500">
+                <h2 class="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+                    <span class="bg-gradient-to-r from-sky-400 to-blue-500 bg-clip-text text-transparent">Specify</span> them <span class="inline-block ml-1">📝</span>
+                </h2>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 3: Validate them ✅
+        =========================================== -->
+        <section id="scene-2" class="scene">
+            <div class="ide-window w-full max-w-xl rounded-2xl overflow-hidden" style="--window-glow: rgba(16, 185, 129, 0.3);">
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-900/90 border-b border-slate-800/80">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-rose-500/90"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-400/90"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500/90"></span>
+                    </div>
+                    <div class="text-xs code-font text-slate-400 flex items-center gap-1.5">
+                        <span class="text-emerald-400">&gt;_</span> zsh — terminal
+                    </div>
+                    <div class="w-12"></div>
+                </div>
+
+                <div class="p-6 sm:p-8 text-base sm:text-xl code-font min-h-[160px] flex flex-col justify-center">
+                    <div class="flex items-center gap-3">
+                        <span class="text-emerald-400 font-bold select-none">❯</span>
+                        <span id="s3-typed-cmd" class="text-slate-100 font-semibold"></span>
+                        <span id="s3-cursor" class="w-2.5 h-5 bg-emerald-400 inline-block cursor-blink"></span>
+                    </div>
+
+                    <div id="s3-output" class="mt-5 pt-4 border-t border-slate-800/80 opacity-0 transform translate-y-2 transition-all duration-300 space-y-1.5 text-xs sm:text-sm">
+                        <div class="flex items-center gap-2 text-emerald-400 font-semibold">
+                            <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40">✓</span>
+                            <span>All profiles (<span class="text-slate-200">local</span>, <span class="text-slate-200">prod</span>) &amp; schema constraints verified!</span>
+                        </div>
+                        <div class="text-slate-400 pl-7">0 errors, 0 missing keys • 1.2ms</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tagline 3 -->
+            <div id="tagline-2" class="mt-8 text-center transform translate-y-4 opacity-0 transition-all duration-500">
+                <h2 class="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white">
+                    <span class="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">Validate</span> them <span class="inline-block ml-1">✅</span>
+                </h2>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 4: Export settings.<ext>
+        =========================================== -->
+        <section id="scene-3" class="scene">
+            <div class="w-full max-w-2xl flex flex-col gap-4">
+                <!-- Snippet 1: TOML Spec -->
+                <div class="ide-window rounded-2xl overflow-hidden" style="--window-glow: rgba(56, 189, 248, 0.35);">
+                    <div class="flex items-center justify-between px-4 py-2.5 bg-slate-900/90 border-b border-slate-800/80">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500/90"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-400/90"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500/90"></span>
+                        </div>
+                        <div class="text-xs code-font text-slate-400">settingspec.toml</div>
+                        <div id="s4-lang-badge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 transition-colors">
+                            Python
+                        </div>
+                    </div>
+                    <div class="p-5 sm:p-7 text-base sm:text-xl md:text-2xl code-font leading-relaxed">
+                        <div><span class="text-sky-400 font-bold">[spec]</span></div>
+                        <div class="mt-1">
+                            <span class="text-indigo-300">export.file</span> <span class="text-sky-400">=</span> 
+                            <span class="text-emerald-400">"settings<span id="s4-code-ext" class="ext-pill font-bold px-1.5 py-0.5 rounded bg-sky-500/25 text-sky-300 border border-sky-400/40">.py</span>"</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Snippet 2: Bash Command -->
+                <div class="ide-window rounded-2xl overflow-hidden">
+                    <div class="p-4 sm:p-5 text-sm sm:text-lg md:text-xl code-font flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-emerald-400 font-bold select-none">&gt;</span>
+                            <span class="text-slate-100 font-semibold">settingspec <span class="text-sky-400">export</span></span>
+                        </div>
+                        <div class="text-xs sm:text-sm text-emerald-400 flex items-center gap-1.5">
+                            <span>⚡ Generated</span>
+                            <span id="s4-gen-file" class="font-bold text-white underline decoration-emerald-500/60 underline-offset-4">settings.py</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tagline 4 -->
+            <div id="tagline-3" class="mt-8 text-center">
+                <h2 class="text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+                    <span>Export</span>
+                    <span class="code-font inline-flex items-baseline bg-slate-900/90 border border-slate-700/80 px-4 py-1.5 rounded-2xl shadow-xl">
+                        <span class="text-slate-200">settings</span><span id="s4-tagline-ext" class="ext-pill font-extrabold text-sky-400 bg-sky-500/20 px-2 py-0.5 rounded-lg border border-sky-400/40 ml-0.5">.py</span>
+                    </span>
+                </h2>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SCREEN 5: Dramatic Finale Logo Reveal
+        =========================================== -->
+        <section id="scene-4" class="scene !p-0">
+            <div class="relative flex flex-col items-center justify-center w-full h-full px-6 py-10 bg-black overflow-hidden">
+                <!-- Dramatic Radial Spotlight behind Logo -->
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(14,165,233,0.18)_0%,transparent_70%)]"></div>
+
+                <!-- Exact Recreation of the Provided SettingSpec Cover Image -->
+                <div id="finale-logo-container" class="relative z-10 w-full flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8 py-4 transform scale-90 transition-all duration-1000">
+                    
+                    <!-- Crisp SVG Recreation of the Terminal + Document + Blue Gear Icon -->
+                    <svg viewBox="0 0 280 260" class="w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 flex-shrink-0 drop-shadow-[0_15px_35px_rgba(0,149,255,0.3)]" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="gearGrad" x1="175" y1="160" x2="270" y2="255" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#22A7FF"/>
+                                <stop offset="100%" stop-color="#0066CC"/>
+                            </linearGradient>
+                            <linearGradient id="flapGrad" x1="200" y1="75" x2="235" y2="112" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#1DA1F2"/>
+                                <stop offset="100%" stop-color="#0077E6"/>
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Outer Terminal Frame -->
+                        <rect x="16" y="24" width="194" height="170" rx="26" fill="#0B1320" stroke="#4D6893" stroke-width="12"/>
+                        <!-- Terminal Traffic Lights -->
+                        <circle cx="44" cy="52" r="7.5" fill="#FF4D4F"/>
+                        <circle cx="69" cy="52" r="7.5" fill="#FADB14"/>
+                        <circle cx="94" cy="52" r="7.5" fill="#00D68F"/>
+
+                        <!-- Green Terminal Prompt >_ -->
+                        <path d="M44 102L68 120L44 138" stroke="#00D68F" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+                        <line x1="78" y1="142" x2="108" y2="142" stroke="#00D68F" stroke-width="11" stroke-linecap="round"/>
+
+                        <!-- White Specification Document -->
+                        <path d="M128 92C128 82.0589 136.059 74 146 74H198L236 112V208C236 217.941 227.941 226 218 226H146C136.059 226 128 217.941 128 208V92Z" fill="#F8FAFC"/>
+                        <!-- Blue Folded Corner -->
+                        <path d="M198 74L236 112H210C203.373 112 198 106.627 198 100V74Z" fill="url(#flapGrad)"/>
+
+                        <!-- Document Spec Lines & Dots -->
+                        <rect x="145" y="106" width="42" height="10" rx="5" fill="#4D6893"/>
+                        
+                        <circle cx="150" cy="134" r="6" fill="#4D6893"/>
+                        <rect x="165" y="129" width="52" height="10" rx="5" fill="#4D6893"/>
+
+                        <circle cx="150" cy="160" r="6" fill="#4D6893"/>
+                        <rect x="165" y="155" width="44" height="10" rx="5" fill="#4D6893"/>
+
+                        <circle cx="150" cy="186" r="6" fill="#4D6893"/>
+                        <rect x="165" y="181" width="30" height="10" rx="5" fill="#4D6893"/>
+
+                        <!-- Blue Cog / Gear Overlapping Bottom-Right -->
+                        <g class="gear-spin">
+                            <path d="M223 166 H237 L240 177 L249 181 L259 174 L269 184 L262 194 L266 203 L277 206 V220 L266 223 L262 232 L269 242 L259 252 L249 245 L240 249 L237 260 H223 L220 249 L211 245 L201 252 L191 242 L198 232 L194 223 L183 220 V206 L194 203 L198 194 L191 184 L201 174 L211 181 L220 177 Z" fill="url(#gearGrad)"/>
+                            <circle cx="230" cy="213" r="16" fill="#060911"/>
+                        </g>
+                    </svg>
+
+                    <!-- Brand Typography: SettingSpec -->
+                    <div class="text-center sm:text-left">
+                        <h1 class="logo-font text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-none select-text">
+                            <span class="text-white">Setting</span><span class="bg-gradient-to-b from-[#29B6FF] to-[#0077EA] bg-clip-text text-transparent">Spec</span>
+                        </h1>
+                        <p class="mt-4 text-base sm:text-lg md:text-2xl text-slate-300 font-semibold tracking-wide">
+                            Specify <span class="text-sky-400 mx-1">●</span> Validate <span class="text-sky-400 mx-1">●</span> Export - <span class="text-sky-400">in any format</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        /* ==========================================================================
+           WEB AUDIO SYNTHESIZER (Zero External Assets Required)
+        ========================================================================== */
+        class PromoSoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playKeyTick(freq = 620) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.exponentialRampToValueAtTime(120, now + 0.035);
+
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.04);
+            }
+
+            playErrorBuzz() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(145, now);
+                osc.frequency.setValueAtTime(110, now + 0.12);
+
+                gain.gain.setValueAtTime(0.09, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.36);
+            }
+
+            playSuccessChime() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + idx * 0.06;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.36);
+                });
+            }
+
+            playWhoosh() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(65, now + 0.25);
+
+                gain.gain.setValueAtTime(0.08, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.27);
+            }
+
+            playFinaleChord() {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+
+                const chord = [261.63, 329.63, 392.00, 523.25, 659.25];
+                chord.forEach((freq) => {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.6);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.65);
+                });
+            }
+        }
+
+        const sfx = new PromoSoundEngine();
+
+        /* ==========================================================================
+           EXTENSION SWAP DATA FOR SCREEN 4
+        ========================================================================== */
+        const EXTENSIONS = [
+            { ext: ".py",   lang: "Python",     color: "text-sky-300 bg-sky-500/25 border-sky-400/50" },
+            { ext: ".toml", lang: "TOML",       color: "text-amber-300 bg-amber-500/25 border-amber-400/50" },
+            { ext: ".js",   lang: "JavaScript", color: "text-yellow-300 bg-yellow-500/25 border-yellow-400/50" },
+            { ext: ".json", lang: "JSON",       color: "text-emerald-300 bg-emerald-500/25 border-emerald-400/50" },
+            { ext: ".lua",  lang: "Lua",        color: "text-indigo-300 bg-indigo-500/25 border-indigo-400/50" },
+            { ext: ".rs",   lang: "Rust",       color: "text-orange-300 bg-orange-500/25 border-orange-400/50" },
+            { ext: ".tf",   lang: "Terraform",  color: "text-purple-300 bg-purple-500/25 border-purple-400/50" },
+            { ext: ".env",  lang: "DotEnv",     color: "text-teal-300 bg-teal-500/25 border-teal-400/50" },
+            { ext: ".zig",  lang: "Zig",        color: "text-amber-400 bg-amber-500/25 border-amber-400/50" },
+            { ext: ".elm",  lang: "Elm",        color: "text-cyan-300 bg-cyan-500/25 border-cyan-400/50" },
+            { ext: ".ts",   lang: "TypeScript", color: "text-blue-300 bg-blue-500/25 border-blue-400/50" },
+            { ext: ".cpp",  lang: "C++",        color: "text-rose-300 bg-rose-500/25 border-rose-400/50" }
+        ];
+
+        /* ==========================================================================
+           DIRECTOR / TIMELINE CONTROLLER
+        ========================================================================== */
+        const SCENE_DURATIONS = [4600, 3800, 3400, 5600, 6000]; // ms per scene
+        let currentScene = 0;
+        let isPlaying = true;
+        let sceneElapsed = 0;
+        let lastFrameTime = performance.now();
+        let activeTimeouts = [];
+
+        function scheduleTimeout(fn, delay) {
+            const id = setTimeout(fn, delay);
+            activeTimeouts.push(id);
+            return id;
+        }
+
+        function clearScheduledTimeouts() {
+            activeTimeouts.forEach(id => clearTimeout(id));
+            activeTimeouts = [];
+        }
+
+        function updateAmbientOrbs(sceneIdx) {
+            const orb1 = document.getElementById('ambient-orb-1');
+            const orb2 = document.getElementById('ambient-orb-2');
+            const palettes = [
+                ['bg-rose-500/15', 'bg-amber-600/10'],
+                ['bg-sky-500/15', 'bg-indigo-600/15'],
+                ['bg-emerald-500/15', 'bg-teal-600/15'],
+                ['bg-sky-500/20', 'bg-purple-600/15'],
+                ['bg-sky-400/25', 'bg-blue-600/25']
+            ];
+            orb1.className = `absolute -top-32 -left-32 w-96 h-96 rounded-full blur-[130px] transition-all duration-1000 ${palettes[sceneIdx][0]}`;
+            orb2.className = `absolute -bottom-32 -right-32 w-[28rem] h-[28rem] rounded-full blur-[140px] transition-all duration-1000 ${palettes[sceneIdx][1]}`;
+        }
+
+        /* ==========================================================================
+           SCENE CHOREOGRAPHY
+        ========================================================================== */
+        function runScene0() {
+            // Reset elements
+            const win = document.getElementById('win-scene-0');
+            const typo = document.getElementById('s1-typo');
+            const pill = document.getElementById('s1-error-pill');
+            const tagline = document.getElementById('tagline-0');
+            const lines = document.querySelectorAll('#s1-code-lines .code-line');
+
+            win.classList.remove('error-shake');
+            typo.classList.remove('typo-error', 'text-rose-400', 'font-bold');
+            pill.classList.add('opacity-0');
+            tagline.classList.add('opacity-0', 'translate-y-4');
+            lines.forEach(l => l.classList.remove('revealed'));
+
+            // Rapidly cascade lines
+            lines.forEach((line, idx) => {
+                scheduleTimeout(() => {
+                    line.classList.add('revealed');
+                    if (idx % 3 === 0) sfx.playKeyTick(520 + idx * 18);
+                }, idx * 75);
+            });
+
+            // Highlight the `setings` typo & shake window
+            scheduleTimeout(() => {
+                typo.classList.add('typo-error', 'text-rose-400', 'font-bold');
+                pill.classList.remove('opacity-0');
+                win.classList.add('error-shake');
+                sfx.playErrorBuzz();
+            }, 1550);
+
+            // Dramatically reveal Tagline 1
+            scheduleTimeout(() => {
+                tagline.classList.remove('opacity-0', 'translate-y-4');
+            }, 1900);
+        }
+
+        function runScene1() {
+            const lines = document.querySelectorAll('#s2-code-lines .code-line');
+            const tagline = document.getElementById('tagline-1');
+
+            lines.forEach(l => l.classList.remove('revealed'));
+            tagline.classList.add('opacity-0', 'translate-y-4');
+
+            lines.forEach((line, idx) => {
+                scheduleTimeout(() => {
+                    line.classList.add('revealed');
+                    sfx.playKeyTick(680 + idx * 35);
+                }, 120 + idx * 110);
+            });
+
+            scheduleTimeout(() => {
+                tagline.classList.remove('opacity-0', 'translate-y-4');
+                sfx.playSuccessChime();
+            }, 1350);
+        }
+
+        function runScene2() {
+            const cmdEl = document.getElementById('s3-typed-cmd');
+            const outEl = document.getElementById('s3-output');
+            const tagline = document.getElementById('tagline-2');
+            const targetCmd = 'settingspec check';
+
+            cmdEl.textContent = '';
+            outEl.classList.add('opacity-0', 'translate-y-2');
+            tagline.classList.add('opacity-0', 'translate-y-4');
+
+            // Typewriter effect
+            targetCmd.split('').forEach((char, idx) => {
+                scheduleTimeout(() => {
+                    cmdEl.textContent += char;
+                    sfx.playKeyTick(750 + (idx % 4) * 40);
+                }, 220 + idx * 55);
+            });
+
+            // Show check output & Tagline
+            scheduleTimeout(() => {
+                outEl.classList.remove('opacity-0', 'translate-y-2');
+                tagline.classList.remove('opacity-0', 'translate-y-4');
+                sfx.playSuccessChime();
+            }, 1350);
+        }
+
+        function runScene3() {
+            const codeExt = document.getElementById('s4-code-ext');
+            const taglineExt = document.getElementById('s4-tagline-ext');
+            const genFile = document.getElementById('s4-gen-file');
+            const langBadge = document.getElementById('s4-lang-badge');
+
+            const applyExtension = (idx) => {
+                const item = EXTENSIONS[idx];
+                codeExt.textContent = item.ext;
+                taglineExt.textContent = item.ext;
+                genFile.textContent = `settings${item.ext}`;
+                langBadge.textContent = item.lang;
+
+                codeExt.className = `ext-pill font-bold px-1.5 py-0.5 rounded border pop ${item.color}`;
+                taglineExt.className = `ext-pill font-extrabold px-2 py-0.5 rounded-lg border ml-0.5 pop ${item.color}`;
+
+                scheduleTimeout(() => {
+                    codeExt.classList.remove('pop');
+                    taglineExt.classList.remove('pop');
+                }, 140);
+
+                sfx.playKeyTick(480 + idx * 45);
+            };
+
+            // Start with .py
+            applyExtension(0);
+
+            // Rapidly cycle through all 12 extensions (.py -> .toml -> .js -> ... -> .cpp)
+            for (let i = 1; i < EXTENSIONS.length; i++) {
+                scheduleTimeout(() => {
+                    applyExtension(i);
+                }, 600 + i * 360);
+            }
+        }
+
+        function runScene4() {
+            const logoContainer = document.getElementById('finale-logo-container');
+            logoContainer.classList.add('scale-90');
+            logoContainer.classList.remove('scale-100');
+
+            scheduleTimeout(() => {
+                logoContainer.classList.remove('scale-90');
+                logoContainer.classList.add('scale-100');
+                sfx.playFinaleChord();
+            }, 120);
+        }
+
+        const SCENE_RUNNERS = [runScene0, runScene1, runScene2, runScene3, runScene4];
+
+        function activateScene(index) {
+            clearScheduledTimeouts();
+
+            document.querySelectorAll('.scene').forEach((el, idx) => {
+                if (idx === index) {
+                    el.classList.remove('exit-left');
+                    el.classList.add('active');
+                } else if (idx < index) {
+                    el.classList.remove('active');
+                    el.classList.add('exit-left');
+                } else {
+                    el.classList.remove('active', 'exit-left');
+                }
+            });
+
+            currentScene = index;
+            sceneElapsed = 0;
+            updateAmbientOrbs(index);
+            sfx.playWhoosh();
+            SCENE_RUNNERS[index]();
+        }
+
+        /* ==========================================================================
+           MAIN ANIMATION LOOP (Seamless Auto-Looping)
+        ========================================================================== */
+        function tick(now) {
+            const dt = now - lastFrameTime;
+            lastFrameTime = now;
+
+            if (isPlaying) {
+                sceneElapsed += dt;
+                const currentDuration = SCENE_DURATIONS[currentScene];
+
+                if (sceneElapsed >= currentDuration) {
+                    if (currentScene < SCENE_RUNNERS.length - 1) {
+                        activateScene(currentScene + 1);
+                    } else {
+                        // Seamlessly loop back to Scene 0
+                        activateScene(0);
+                    }
+                }
+            }
+
+            requestAnimationFrame(tick);
+        }
+
+        // Start Promotional Video on Load
+        window.onload = function () {
+            lastFrameTime = performance.now();
+            activateScene(0);
+            requestAnimationFrame(tick);
+        };
+    </script>
+</body>
+</html>

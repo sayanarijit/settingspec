@@ -2,7 +2,7 @@
 name = "settingspec"
 version = "0.10.0"
 edition = "2024"
-description = "One file for all environments, all languages, all submodules."
+description = "Don't program your settings. Specify • Validate • Export - in any format."
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/sayanarijit/settingspec"
