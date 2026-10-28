@@ -11,7 +11,7 @@
 
 ### 1.1 What SettingSpec does
 
-Modern projects often need different configuration for development, staging, testing, and production. They may also use several programming languages and nested modules.
+Software development often requires writing different configuration for development, staging, testing, production etc.
 
 A common approach is to keep separate files such as `common.toml`, `dev.toml`, and `prod.toml`. This creates several problems:
 
