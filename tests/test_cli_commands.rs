@@ -916,7 +916,8 @@ profile.options = ["local", "prod"]
 profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
 
 [settings]
-key._.default.val = "value"
+key._.local.val = "local"
+key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
 "#;
     assert_eq!(content, expected);
 

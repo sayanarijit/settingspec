@@ -12,7 +12,6 @@ pub enum SettingSpecError {
     ActiveProfileNotInOptions(String),
     NoProfileSelected,
     StrictCoverageFailed(String, String), // setting key, missing profile
-    MixedEnvProfiles(String, String),     // setting key, profile without env
     InvalidDirective(String, String, String), // setting key, profile, directive
     NullCoexistsWithVal(String, String),  // setting key, profile
     InvalidNullValue(String, String),     // setting key, profile
@@ -26,7 +25,6 @@ pub enum SettingSpecError {
     InvalidExportFormat(String),
     UnresolvedExportUnsupported(String, String), // format, setting key
     UnsupportedType(String, String),             // format, setting key
-    EnvFallbackUnsupported(String, String),      // format, setting key
     IoError(String),
     CommandFailed(i32),
 }
@@ -67,11 +65,6 @@ impl fmt::Display for SettingSpecError {
             Self::NoProfileSelected => write!(
                 f,
                 "No profile was selected and spec.profile.options is defined"
-            ),
-            Self::MixedEnvProfiles(k, p) => write!(
-                f,
-                "Setting '{}' uses 'env' in some profiles, so profile '{}' must use 'env' too when spec.export.resolve = false",
-                k, p
             ),
             Self::StrictCoverageFailed(k, p) => write!(
                 f,
@@ -124,11 +117,6 @@ impl fmt::Display for SettingSpecError {
             Self::UnresolvedExportUnsupported(fmt, key) => write!(
                 f,
                 "Setting '{}' reads an environment variable, which '{}' exports cannot reference; set spec.export.resolve = true",
-                key, fmt
-            ),
-            Self::EnvFallbackUnsupported(fmt, key) => write!(
-                f,
-                "Setting '{}' has an 'env' directive with a 'val' or 'null' fallback, which '{}' exports cannot express; set spec.export.resolve = true",
                 key, fmt
             ),
             Self::UnsupportedType(fmt, key) => write!(
