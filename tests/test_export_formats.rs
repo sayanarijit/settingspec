@@ -1049,7 +1049,7 @@ fn test_typed_nullable_env_setting_is_optional_string() {
         &[
             "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp",
         ],
-        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.null = true\n",
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.env = \"DB_PASSWORD\"\npw._.prod.null = true\n",
         &[("DB_PASSWORD", "hunter2")],
     );
     assert_contains(
@@ -1081,7 +1081,7 @@ fn test_typed_union_of_profile_value_kinds() {
         &[
             "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp", "s.json",
         ],
-        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\n",
+        "port._.default.val = 5432\nport._.default.env = \"PORT\"\nport._.dev.env = \"PORT\"\nport._.prod.env = \"PORT\"\nport._.prod.null = true\n",
         &[("PORT", "8080")],
     );
     assert_contains(
@@ -1228,18 +1228,64 @@ fn test_typed_unsupported_shapes_are_rejected() {
 fn test_python_type_hints_are_the_union_of_profile_types() {
     let temp = export_profiles(
         &["s.py"],
-        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\nname._.default.val = \"x\"\ntags._.default.val = [\"a\"]\n",
+        "port._.default.val = 5432\nport._.default.env = \"PORT\"\nport._.dev.env = \"PORT\"\nport._.prod.env = \"PORT\"\nport._.prod.null = true\nname._.default.val = \"x\"\ntags._.default.val = [\"a\"]\n",
         &[("PORT", "8080")],
     );
     assert_contains(
         &temp,
         &[
-            (
-                "s.py",
-                "port: str | int | None = os.environ[\"PORT\"]",
-            ),
+            ("s.py", "port: str | int | None = os.environ[\"PORT\"]"),
             ("s.py", "name: str = \"x\""),
             ("s.py", "tags: list = [\"a\"]"),
         ],
     );
+}
+
+#[test]
+fn test_resolve_false_env_fallback_rejected_for_unsupported_formats() {
+    for file in [
+        "out.env", "out.json", "out.toml", "out.yaml", "out.ts", "out.rs",
+    ] {
+        let temp = assert_fs::TempDir::new().unwrap();
+        temp.child("settingspec.toml")
+            .write_str(&format!(
+                "[spec]\nexport.file = {{ \"{}\" = true }}\n\n[settings]\npw._.default.env = \"PW_VAR\"\npw._.default.val = \"fallback\"\n",
+                file
+            ))
+            .unwrap();
+        Command::cargo_bin("settingspec")
+            .unwrap()
+            .current_dir(temp.path())
+            .env("PW_VAR", "secret")
+            .arg("export")
+            .assert()
+            .failure()
+            .stderr(predicate::str::contains("fallback"));
+    }
+}
+
+#[test]
+fn test_resolve_false_env_fallback_allowed_for_dynamic_formats() {
+    export_unresolved(
+        "\"out.py\" = true, \"out.js\" = true, \"out.rb\" = true, \"out.lua\" = true",
+        "pw._.default.env = \"PW_VAR\"\npw._.default.val = \"fallback\"\n",
+        &[("PW_VAR", "secret")],
+    );
+}
+
+#[test]
+fn test_check_flags_unsupported_env_fallback_export() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str("[spec]\nexport.file = { \".env\" = true }\n\n[settings]\npw._.default.env = \"PW_VAR\"\npw._.default.val = \"fallback\"\n")
+        .unwrap();
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("PW_VAR", "x")
+        .arg("check")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("fallback"));
+    assert!(!temp.child(".env").path().exists());
 }

@@ -105,6 +105,20 @@ pub fn parse_config_str(content: &str) -> Result<SettingSpecDocument> {
         }
     }
 
+    // 6. With resolve = false, env directives must be used consistently across profiles
+    if !spec.export.resolve {
+        for (key, setting) in &settings {
+            if setting.profiles.values().any(|d| d.env.is_some()) {
+                if let Some((profile, _)) = setting.profiles.iter().find(|(_, d)| d.env.is_none()) {
+                    return Err(SettingSpecError::InconsistentEnvDirective(
+                        key.clone(),
+                        profile.clone(),
+                    ));
+                }
+            }
+        }
+    }
+
     Ok(SettingSpecDocument { spec, settings })
 }
 

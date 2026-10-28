@@ -236,3 +236,47 @@ key1._.arbitrary.val = "arbitrary_val"
     let mut cmd = Command::cargo_bin("settingspec").unwrap();
     cmd.current_dir(temp.path()).arg("check").assert().success();
 }
+
+fn check_with_resolve(resolve: bool, settings: &str) -> assert_cmd::assert::Assert {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(&format!(
+            "[spec]\nprofile.options = [\"dev\", \"prod\"]\nprofile.default = \"dev\"\nexport.resolve = {resolve}\n\n[settings]\n{settings}"
+        ))
+        .unwrap();
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("DB_PASSWORD", "x")
+        .env("PROD_DB_PASSWORD", "y")
+        .arg("check")
+        .assert()
+}
+
+#[test]
+fn test_unresolved_mixed_env_and_val_fails() {
+    check_with_resolve(
+        false,
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.val = \"static\"\n",
+    )
+    .failure()
+    .stderr(predicate::str::contains("every profile must use 'env'"));
+}
+
+#[test]
+fn test_unresolved_env_in_all_profiles_with_fallbacks_succeeds() {
+    check_with_resolve(
+        false,
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.env = \"PROD_DB_PASSWORD\"\npw._.prod.val = \"fb\"\n",
+    )
+    .success();
+}
+
+#[test]
+fn test_resolved_mixed_env_and_val_succeeds() {
+    check_with_resolve(
+        true,
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.val = \"static\"\n",
+    )
+    .success();
+}

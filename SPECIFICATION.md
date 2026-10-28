@@ -173,10 +173,10 @@ decryption.key.env = "SETTINGSPEC_DECRYPTION_KEY"
 decryption.key.path = "~/.ssh/"
 ```
 
-| Setting               | Type            | Default                      | Meaning                                                           |
-| --------------------- | --------------- | ---------------------------- | ----------------------------------------------------------------- |
+| Setting               | Type            | Default                      | Meaning                                                              |
+| --------------------- | --------------- | ---------------------------- | -------------------------------------------------------------------- |
 | `decryption.key.env`  | String          | `SETTINGSPEC_DECRYPTION_KEY` | Environment variable holding an age identity or `:`-separated paths. |
-| `decryption.key.path` | String or array | Unset                        | Fallback files or directories containing age identities.          |
+| `decryption.key.path` | String or array | Unset                        | Fallback files or directories containing age identities.             |
 
 Paths may be files or directories; directories are searched recursively. Passphrase-protected identities are not supported.
 
@@ -262,9 +262,28 @@ When a setting has an `env` directive and a `val` or `null` fallback (see sectio
 | `.rb`         | `ENV.fetch("DB_PASSWORD", "fallback")`                     |
 | `.lua`        | `(os.getenv("DB_PASSWORD") or "fallback")`                 |
 
-Static data formats, `.env` files, TypeScript and the other statically typed languages cannot express the fallback without changing the type, so they contain the environment variable reference only. The fallback is not embedded, and the consumer of such a file MUST handle the variable being unset. Fallback values come from `settingspec.toml` and are not secret, so omitting or embedding them does not expose environment-sourced values.
+Static data formats, `.env` files, TypeScript and the other statically typed languages cannot express the fallback without changing the type. With `resolve = false`, exporting a setting that has an `env` directive with a `val` or `null` fallback (in the active profile, or in `default` when the active profile has no declaration of its own) to such a format MUST cause an error, so that the fallback is never silently dropped and the exported file never behaves differently from the resolution rules in section 5.2. Only the formats in the table above (`.py`, `.js`, `.mjs`, `.rb`, `.lua`) support env fallbacks. Settings with an `env` directive and no fallback export normally to every format that supports `env` references.
 
-`resolve` does not change validation. The settings are still resolved for the active profile as described in section 5.2, so a required environment variable that is missing MUST still cause an error even when `resolve = false`.
+With `resolve = true` this restriction does not apply, because the resolved value is written.
+
+When `resolve = false`, a setting MUST use the `env` directive consistently across profiles. If any profile declaration of a setting contains an `env` directive, every other profile MUST also contain an `env` directive for that setting, so that the exported reference never depends on the active profile. A `default` declaration with `env` covers every profile that has no declaration of its own, but a profile that declares only `val` or `null` is not covered. Fallbacks are allowed: an `env` directive MAY be accompanied by a `val` or `null` fallback in any profile, and the fallback does not need to be present in every profile. Configuration loading MUST stop with an error when this rule is violated:
+
+```toml
+# Invalid when resolve = false: `prod` has no env directive
+password._.default.env = "DB_PASSWORD"
+password._.prod.val = "static"
+
+# Valid: every profile uses env; fallbacks are optional
+password._.default.env = "DB_PASSWORD"
+password._.prod.env = "PROD_DB_PASSWORD"
+password._.prod.val = "fallback"
+```
+
+This rule does not apply when `resolve = true`.
+
+Likewise, when `resolve = false`, a setting whose `env` directive has a fallback MUST NOT be exported to a file whose format cannot express the fallback (see above).
+
+`resolve` does not otherwise change validation. The settings are still resolved for the active profile as described in section 5.2, so a required environment variable that is missing MUST still cause an error even when `resolve = false`.
 
 `resolve` applies to `export.file` and `export.stdout`. It does not affect `export.env` or `export.stdin`, which always pass resolved values to the child process.
 
@@ -633,6 +652,8 @@ It checks that:
 3. Every declaration is well-formed and uses a valid directive (`val`, `env`, or `null`) or is a valid tags declaration.
 4. No setting key contains the reserved `_` component, and no profile name is `default` or `tags` in `profile.options`.
 5. Environment values for the active profile are present if required.
+6. When `spec.export.resolve = false`, every setting that has an `env` directive in any profile has an `env` directive in all other profiles (fallbacks allowed), as described in section 3.3.
+7. Every configured export (`export.file`, `export.stdout`, `export.stdin`) can be generated for the active profile, including its format, the setting types it must express, and the env fallback restriction in section 3.3. The output is discarded.
 
 ---
 
@@ -843,6 +864,7 @@ It checks:
 - TOML syntax.
 - Malformed declarations, the reserved `_` separator in setting keys, and reserved profile names (`default`, `tags`).
 - Profile completeness.
+- Consistent use of `env` directives across profiles when `spec.export.resolve = false`.
 - Required environment variables for active profile.
 - Decryption identities for encrypted environment files used by the active profile.
 

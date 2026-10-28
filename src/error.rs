@@ -25,6 +25,8 @@ pub enum SettingSpecError {
     InvalidExportFormat(String),
     UnresolvedExportUnsupported(String, String), // format, setting key
     UnsupportedType(String, String),             // format, setting key
+    InconsistentEnvDirective(String, String),    // setting key, profile
+    EnvFallbackUnsupported(String, String),      // format, setting key
     IoError(String),
     CommandFailed(i32),
 }
@@ -122,6 +124,16 @@ impl fmt::Display for SettingSpecError {
             Self::UnsupportedType(fmt, key) => write!(
                 f,
                 "The type of setting '{}' (a union, optional, or environment-backed value) cannot be expressed in '{}' exports",
+                key, fmt
+            ),
+            Self::InconsistentEnvDirective(k, p) => write!(
+                f,
+                "Setting '{}' uses an 'env' directive in some profiles but not in profile '{}'; with spec.export.resolve = false every profile must use 'env' (fallbacks allowed)",
+                k, p
+            ),
+            Self::EnvFallbackUnsupported(fmt, key) => write!(
+                f,
+                "Setting '{}' has an 'env' directive with a 'val'/'null' fallback, which '{}' exports cannot express; set spec.export.resolve = true or remove the fallback",
                 key, fmt
             ),
             Self::IoError(msg) => write!(f, "I/O error: {}", msg),

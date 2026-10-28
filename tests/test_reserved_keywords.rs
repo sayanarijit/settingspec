@@ -310,6 +310,9 @@ fn test_valid_directive_usage_with_all_reserved_keywords() {
     config
         .write_str(
             r#"
+[spec]
+export.file = { "out.py" = true }
+
 [settings]
 my_key._.default.val = "hello"
 my_key._.default.env = "MY_KEY_VAR"

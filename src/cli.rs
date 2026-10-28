@@ -80,8 +80,7 @@ profile.options = ["local", "prod"]
 profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
 
 [settings]
-key._.local.val = "local"
-key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+key._.default.val = "value"
 "#;
 
 pub fn init_config() -> Result<()> {
@@ -171,7 +170,6 @@ pub fn run_cli() -> Result<()> {
     match cli.command {
         Commands::Init => init_config(),
         Commands::Check => {
-            // Check only validates config syntax, profiles, env vars without creating files
             load_and_resolve()?;
             Ok(())
         }

@@ -89,6 +89,30 @@ fn prepare_setting(
     resolve: bool,
     typed: bool,
 ) -> Result<ResolvedSetting> {
+    // Only dynamically typed formats can embed a fallback next to the reference.
+    // Elm and Terraform reject environment references on their own.
+    if !resolve
+        && s.env_ref.as_ref().is_some_and(|r| r.fallback.is_some())
+        && !matches!(
+            format,
+            "py" | "python"
+                | "js"
+                | "mjs"
+                | "javascript"
+                | "rb"
+                | "ruby"
+                | "lua"
+                | "elm"
+                | "tf"
+                | "tfvars"
+                | "terraform"
+        )
+    {
+        return Err(SettingSpecError::EnvFallbackUnsupported(
+            format.to_string(),
+            s.key.clone(),
+        ));
+    }
     let mut value = match &s.env_ref {
         Some(r) if !resolve => SettingValue::Env(r.clone()),
         _ => s.value.clone(),

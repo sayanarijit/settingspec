@@ -61,13 +61,13 @@ key2._ = {  # Strictly define different values for different profiles
   default.null = true,   # When SETTINGSPEC_PROFILE=dev, key2=null
   dev.val = 2,           # Unon types ae supported
   stage.val = "stage2",
-  prod.env = "KEY2",     # When SETTINGSPEC_PROFILE=prod, key2 is read from the environment variable KEY2
+  prod.val = true,
 }
 
 group1.key1._.default.val = "group1val1"
 group1.key1._.tags = ["tag1", "tag2"]  # Optional: Tags for the setting
 
-group1.key2._.default.env = "KEY2"  # Only env var if defined, must be set
+group1.key2._.default.env = "KEY2"  # Load values from environment variables
 
 [settings.group2.subgroup]
 key1._.default.val = "group2val1"

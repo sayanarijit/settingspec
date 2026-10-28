@@ -916,8 +916,7 @@ profile.options = ["local", "prod"]
 profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
 
 [settings]
-key._.local.val = "local"
-key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+key._.default.val = "value"
 "#;
     assert_eq!(content, expected);
 
@@ -939,7 +938,7 @@ key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
     temp.child("settings.toml")
         .assert(predicate::path::exists());
     let exported = std::fs::read_to_string(temp.child("settings.toml").path()).unwrap();
-    assert!(exported.contains("key = \"local\""));
+    assert!(exported.contains("key = \"value\""));
 }
 
 #[test]
