@@ -505,13 +505,16 @@ A setting can provide an environment variable plus a fallback value:
 secret2._.default.val = "defaultvalue"
 secret2._.default.env = "SECRET2"
 secret2._.prod.env = "PRODSECRET"
+secret2._.prod.val = "prodvalue"
 ```
 
 The rules are:
 
 1. If the environment variable exists, use it.
-2. If it does not exist, use the `val` or `null` fallback.
-3. If there is an `env` directive but no `val` or `null`, and the environment variable is missing, resolution MUST fail.
+2. If it does not exist, use the `val` or `null` fallback declared in the **same profile** as the `env` directive.
+3. If the profile has an `env` directive but no `val` or `null` of its own, and the environment variable is missing, resolution MUST fail. A fallback declared in another profile, including `default`, is never used.
+
+In the example above, `prod` falls back on `"prodvalue"`, never on `"defaultvalue"`. Without `secret2._.prod.val`, resolving `secret2` for `prod` would fail when `PRODSECRET` is unset.
 
 #### `null`
 
@@ -602,9 +605,11 @@ flowchart TD
     HasProfileDecl -- Yes --> CheckProfileEnv{"Does profile P have env?"}
     CheckProfileEnv -- Yes --> CheckEnvExists{"Is the environment variable set?"}
     CheckEnvExists -- Yes --> ReturnEnv["Use the environment variable"]
-    CheckEnvExists -- No --> CheckProfileVal{"Does profile P have val/null?"}
+    CheckEnvExists -- No --> CheckEnvFallback{"Does profile P have val/null?"}
+    CheckEnvFallback -- Yes --> ReturnProfileVal
+    CheckEnvFallback -- No --> EnvError["Error: required environment variable is missing"]
 
-    CheckProfileEnv -- No --> CheckProfileVal
+    CheckProfileEnv -- No --> CheckProfileVal{"Does profile P have val/null?"}
     CheckProfileVal -- Yes --> ReturnProfileVal["Use profile P val/null"]
     CheckProfileVal -- No --> CheckDefault["Check default"]
 
@@ -626,11 +631,12 @@ flowchart TD
 For the same rules in numbered form:
 
 1. If `K` has a profile declaration for `P`:
-   - If its `env` variable exists, use that value.
-   - Otherwise, use its `val` or `null` value if one exists.
+   - If it has an `env` directive and the variable exists, use that value.
+   - If it has an `env` directive and the variable is missing, use its own `val` or `null` value. If it has none, resolution MUST fail; `default` is not consulted.
+   - If it has no `env` directive, use its `val` or `null` value.
 2. If there is no declaration for `P`, check `default`:
    - If the default `env` variable exists, use it.
-   - Otherwise, use the default `val` or `null` value.
+   - Otherwise, use the default `val` or `null` value. If it has none, resolution MUST fail.
 3. If no default exists:
    - With `profile.options`, this is a profile-coverage error.
    - Without `profile.options`, the key is omitted.

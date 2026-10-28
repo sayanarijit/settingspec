@@ -167,6 +167,7 @@ secret1._.default.env = "SECRET1"  # Load value from $SECRET1
 secret2._.default.val = "defaultvalue"  # Default value if $SECRET2 is not set
 secret2._.default.env = "SECRET2"       # Load value from $SECRET2 if set
 secret2._.prod.env = "PRODSECRET"       # Load value from $PRODSECRET if SETTINGSPEC_PROFILE=prod
+secret2._.prod.val = "prodvalue"        # Fallback for prod only, else fail if $PRODSECRET is not set
 ```
 
 With these set up, run:

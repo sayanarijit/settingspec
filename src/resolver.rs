@@ -81,9 +81,10 @@ pub fn resolve_settings(
         let default_decl = setting.profiles.get("default");
 
         let mut final_val: Option<(SettingValue, Option<EnvRef>)> = None;
-        let mut missing_env_error: Option<String> = None;
 
-        // Step 1: Check active profile declaration
+        // Step 1: Check active profile declaration. An `env` without a value in
+        // that profile must fall back on the profile's own `val`/`null`, never
+        // on the default declaration, so a missing variable is a hard error.
         if let Some(decl) = profile_decl {
             let fallback = decl
                 .val
@@ -91,7 +92,12 @@ pub fn resolve_settings(
                 .or_else(|| default_decl.and_then(|d| d.val.as_ref()));
             match resolve_declaration(decl, fallback, env_overrides) {
                 DeclResolution::Value(v, env_ref) => final_val = Some((v, env_ref)),
-                DeclResolution::MissingEnv(env_var) => missing_env_error = Some(env_var),
+                DeclResolution::MissingEnv(env_var) => {
+                    return Err(SettingSpecError::MissingRequiredEnvVar(
+                        key.clone(),
+                        env_var,
+                    ));
+                }
                 DeclResolution::None => {}
             }
         }
@@ -111,11 +117,6 @@ pub fn resolve_settings(
                         return Err(SettingSpecError::RequiredValueMissing(key.clone()));
                     }
                 }
-            } else if let Some(env_var) = missing_env_error {
-                return Err(SettingSpecError::MissingRequiredEnvVar(
-                    key.clone(),
-                    env_var,
-                ));
             } else if !spec.profile.options.is_empty() {
                 if let Some(p) = active_profile {
                     return Err(SettingSpecError::StrictCoverageFailed(

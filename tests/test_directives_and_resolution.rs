@@ -324,3 +324,72 @@ key5._.default.val = { default = { val = 1 } }
     assert_eq!(json_val["key4"]["env"], "MY_VAR");
     assert_eq!(json_val["key5"]["default"]["val"], 1);
 }
+
+#[test]
+fn test_profile_env_does_not_fall_back_on_default_declaration() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(
+            r#"
+[spec]
+profile.options = ["dev", "prod"]
+profile.default = "dev"
+export.resolve = true
+
+[settings]
+secret._.default.val = "defaultvalue"
+secret._.prod.env = "PRODSECRET"
+"#,
+        )
+        .unwrap();
+
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("SETTINGSPEC_PROFILE", "prod")
+        .env_remove("PRODSECRET")
+        .arg("export")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("PRODSECRET"));
+
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("SETTINGSPEC_PROFILE", "dev")
+        .arg("export")
+        .assert()
+        .success();
+}
+
+#[test]
+fn test_profile_env_falls_back_on_own_val() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(
+            r#"
+[spec]
+profile.options = ["dev", "prod"]
+profile.default = "dev"
+export.resolve = true
+
+[settings]
+secret._.default.val = "defaultvalue"
+secret._.prod.env = "PRODSECRET"
+secret._.prod.val = "prodvalue"
+"#,
+        )
+        .unwrap();
+
+    Command::cargo_bin("settingspec")
+        .unwrap()
+        .current_dir(temp.path())
+        .env("SETTINGSPEC_PROFILE", "prod")
+        .env_remove("PRODSECRET")
+        .arg("export")
+        .assert()
+        .success();
+
+    temp.child("settings.toml")
+        .assert(predicate::str::contains("secret = \"prodvalue\""));
+}
