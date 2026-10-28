@@ -213,25 +213,23 @@ When `true`, generated files remain on disk.
 - Type: Boolean.
 - Default: `false`.
 
-Controls whether settings that get their value from an environment variable (the `env` directive) are written to export files as resolved values or as references to the environment variable.
+Controls whether settings selected through an `env` directive are written to export files as resolved values or as references to the environment variable.
 
 ```toml
 [spec.export]
 resolve = true
 ```
 
-When `true`, exported files contain the resolved values of environment variables.
+When `true`, exported files contain the resolved values.
 
-When `false`, exported files MUST NOT contain the resolved value of a setting that was selected through an `env` directive. Instead:
+When `false`, exported files MUST NOT contain the resolved value of such a setting. Instead:
 
-- Static data formats (TOML, JSON, YAML) contain the environment variable name only, as a plain string value.
-- `.env` files contain a shell reference to the variable, such as `DB_PASSWORD=${DB_PASSWORD}`.
-- Programming language formats contain the language's equivalent of reading the environment variable, such as `os.environ["DB_PASSWORD"]` in Python.
-- Elm and Terraform cannot read environment variables. Exporting a setting that comes from an `env` directive to these formats with `resolve = false` MUST cause an error, so that a resolved value is never written silently. Settings that only use `val` or `null` export normally.
+- Static data formats (TOML, JSON, YAML) contain the environment variable name as a plain string.
+- `.env` files contain a shell reference, such as `DB_PASSWORD=${DB_PASSWORD}`.
+- Programming language formats contain the language's equivalent of reading the variable, such as `os.environ["DB_PASSWORD"]` in Python. In statically typed languages the reference is typed as part of the setting's type (see section 4.2.1): an unset variable fails at runtime using the language's usual mechanism (or yields an empty string in Go), or is null if the type includes null. Rust, Zig, and Haskell read the variable in a function; other languages read it when the file is loaded.
+- Elm and Terraform cannot read environment variables, so exporting such a setting to them MUST cause an error.
 
-In statically typed languages, a reference is typed as part of the setting's type (see section 4.2.1). For a setting whose type is only a string, reading an unset variable fails at runtime using the language's usual mechanism, or returns an empty string where there is none (Go). If the type includes null, an unset variable is null. Languages that read the environment at runtime evaluate the reference when the exported file is loaded, or in a function for Rust, Zig, and Haskell.
-
-The examples below are for a setting whose type is only a string ("not nullable") and for a string-or-null setting ("nullable"):
+The examples below are for a string-only setting and a string-or-null setting:
 
 | Format                        | String                                                 | String or null                                           |
 | ----------------------------- | ------------------------------------------------------ | -------------------------------------------------------- |
@@ -251,20 +249,25 @@ The examples below are for a setting whose type is only a string ("not nullable"
 | `.scala`                      | `lazy val x: String = sys.env(..)`                     | `lazy val x: Option[String] = sys.env.get(..)`           |
 | `.hs`                         | `IO String` (`getEnv ..`)                              | `IO (Maybe String)` (`lookupEnv ..`)                     |
 
-Settings whose value comes from `val` or `null` are always exported as-is, regardless of this option.
+With `resolve = false`, if any profile declaration of a setting (including `default`) has an `env` directive, every profile declaration of that setting MUST have an `env` directive, so that the exported form of a setting never depends on the active profile. Violations MUST cause an error. Settings with no `env` directive in any profile are always exported as-is.
 
-When a setting has an `env` directive and a `val` or `null` fallback (see section 4.2), the fallback is preserved only in dynamically typed languages, since the type of a statically typed setting already includes the kind of the fallback, where the exported file then behaves like the resolution rules in section 5.2:
+#### Fallbacks with `resolve = false`
 
-| Format        | Output when `resolve = false` and fallback is `"fallback"` |
-| ------------- | ---------------------------------------------------------- |
-| `.py`         | `os.environ.get("DB_PASSWORD", "fallback")`                |
-| `.js`, `.mjs` | `(process.env.DB_PASSWORD ?? "fallback")`                  |
-| `.rb`         | `ENV.fetch("DB_PASSWORD", "fallback")`                     |
-| `.lua`        | `(os.getenv("DB_PASSWORD") or "fallback")`                 |
+A setting with an `env` directive and a `val` or `null` fallback (see section 4.2) is exported as follows:
 
-Static data formats, `.env` files, TypeScript and the other statically typed languages cannot express the fallback without changing the type, so they contain the environment variable reference only. The fallback is not embedded, and the consumer of such a file MUST handle the variable being unset. Fallback values come from `settingspec.toml` and are not secret, so omitting or embedding them does not expose environment-sourced values.
+- Static data formats (TOML, JSON, YAML) and `.env` files cannot express a fallback. Exporting such a setting to them MUST cause an error.
+- Dynamically typed languages preserve the fallback:
 
-`resolve` does not change validation. The settings are still resolved for the active profile as described in section 5.2, so a required environment variable that is missing MUST still cause an error even when `resolve = false`.
+  | Format        | Output with fallback `"fallback"`           |
+  | ------------- | ------------------------------------------- |
+  | `.py`         | `os.environ.get("DB_PASSWORD", "fallback")` |
+  | `.js`, `.mjs` | `(process.env.DB_PASSWORD ?? "fallback")`   |
+  | `.rb`         | `ENV.fetch("DB_PASSWORD", "fallback")`      |
+  | `.lua`        | `(os.getenv("DB_PASSWORD") or "fallback")`  |
+
+- Statically typed languages already include the fallback's kind in the setting's type, so they contain the environment variable reference only, and the consumer MUST handle the variable being unset.
+
+`resolve` does not change validation. Settings are still resolved for the active profile as described in section 5.2, so a missing required environment variable MUST still cause an error.
 
 `resolve` applies to `export.file` and `export.stdout`. It does not affect `export.env` or `export.stdin`, which always pass resolved values to the child process.
 
@@ -633,6 +636,8 @@ It checks that:
 3. Every declaration is well-formed and uses a valid directive (`val`, `env`, or `null`) or is a valid tags declaration.
 4. No setting key contains the reserved `_` component, and no profile name is `default` or `tags` in `profile.options`.
 5. Environment values for the active profile are present if required.
+6. With `spec.export.resolve = false`, every profile declaration of a setting uses `env` if any of them does.
+7. With `spec.export.resolve = false`, no setting exported to a static data format (TOML, JSON, YAML) or `.env` file has an `env` directive together with a `val` or `null` fallback.
 
 ---
 

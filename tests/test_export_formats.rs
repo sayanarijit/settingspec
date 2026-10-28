@@ -1049,7 +1049,7 @@ fn test_typed_nullable_env_setting_is_optional_string() {
         &[
             "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp",
         ],
-        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.null = true\n",
+        "pw._.default.env = \"DB_PASSWORD\"\npw._.prod.env = \"DB_PASSWORD\"\npw._.prod.null = true\n",
         &[("DB_PASSWORD", "hunter2")],
     );
     assert_contains(
@@ -1081,7 +1081,7 @@ fn test_typed_union_of_profile_value_kinds() {
         &[
             "s.ts", "s.rs", "s.go", "s.java", "s.scala", "s.hs", "s.zig", "s.cpp", "s.json",
         ],
-        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\n",
+        "port._.default.val = 5432\nport._.default.env = \"PORT\"\nport._.dev.env = \"PORT\"\nport._.prod.env = \"PORT\"\nport._.prod.null = true\n",
         &[("PORT", "8080")],
     );
     assert_contains(
@@ -1228,7 +1228,7 @@ fn test_typed_unsupported_shapes_are_rejected() {
 fn test_python_type_hints_are_the_union_of_profile_types() {
     let temp = export_profiles(
         &["s.py"],
-        "port._.default.val = 5432\nport._.dev.env = \"PORT\"\nport._.prod.null = true\nname._.default.val = \"x\"\ntags._.default.val = [\"a\"]\n",
+        "port._.default.val = 5432\nport._.default.env = \"PORT\"\nport._.dev.env = \"PORT\"\nport._.prod.env = \"PORT\"\nport._.prod.null = true\nname._.default.val = \"x\"\ntags._.default.val = [\"a\"]\n",
         &[("PORT", "8080")],
     );
     assert_contains(
@@ -1242,4 +1242,40 @@ fn test_python_type_hints_are_the_union_of_profile_types() {
             ("s.py", "tags: list = [\"a\"]"),
         ],
     );
+}
+
+fn run_export(settings: &str, resolve: bool, file: &str) -> assert_cmd::assert::Assert {
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.child("settingspec.toml")
+        .write_str(&format!(
+            "[spec]\nprofile.options = [\"dev\", \"prod\"]\nprofile.default = \"dev\"\nexport.resolve = {}\nexport.file = {{ \"{}\" = true }}\n\n[settings]\n{}",
+            resolve, file, settings
+        ))
+        .unwrap();
+    let mut cmd = Command::cargo_bin("settingspec").unwrap();
+    cmd.current_dir(temp.path())
+        .env("KEY", "v")
+        .arg("export")
+        .assert()
+}
+
+#[test]
+fn test_unresolved_rejects_mixed_env_and_val_profiles() {
+    let settings = "key._.dev.val = \"a\"\nkey._.prod.env = \"KEY\"\n";
+    run_export(settings, false, "s.json")
+        .failure()
+        .stderr(predicate::str::contains("must use 'env' too"));
+    run_export(settings, true, "s.json").success();
+}
+
+#[test]
+fn test_unresolved_static_formats_reject_env_with_fallback() {
+    let settings = "key._.dev.env = \"KEY\"\nkey._.dev.val = \"a\"\nkey._.prod.env = \"KEY\"\n";
+    for file in ["s.json", "s.toml", "s.yaml", "s.env"] {
+        run_export(settings, false, file)
+            .failure()
+            .stderr(predicate::str::contains("cannot express"));
+    }
+    run_export(settings, false, "s.py").success();
+    run_export(settings, true, "s.json").success();
 }

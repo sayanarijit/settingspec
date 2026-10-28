@@ -89,6 +89,15 @@ fn prepare_setting(
     resolve: bool,
     typed: bool,
 ) -> Result<ResolvedSetting> {
+    if !resolve
+        && matches!(format, "toml" | "json" | "yaml" | "yml" | "env")
+        && s.env_ref.as_ref().is_some_and(|r| r.fallback.is_some())
+    {
+        return Err(SettingSpecError::EnvFallbackUnsupported(
+            format.to_string(),
+            s.key.clone(),
+        ));
+    }
     let mut value = match &s.env_ref {
         Some(r) if !resolve => SettingValue::Env(r.clone()),
         _ => s.value.clone(),

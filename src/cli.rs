@@ -80,8 +80,7 @@ profile.options = ["local", "prod"]
 profile.default = "local"  # Switch via $SETTINGSPEC_PROFILE
 
 [settings]
-key._.local.val = "local"
-key._.prod.env = "KEY"  # Load from $KEY when active profile is "prod"
+key._.default.val = "value"
 "#;
 
 pub fn init_config() -> Result<()> {
