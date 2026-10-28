@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <img alt="The SettingSpec promo" width="100%" src="https://s15.gifyu.com/images/bWl2x.gif">
+    <a href="https://youtu.be/JGBSFYzBN2U"><img alt="The SettingSpec promo" width="100%" src="https://settingspec.arijitbasu.in/promo-cover.webp"></a>
   </picture>
 </p>
 
