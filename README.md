@@ -206,7 +206,7 @@ Too simple? Use [Cottage](https://cottage-cli.pages.dev) or [agebox](https://git
 envfile = ".env.cott.age"
 # envfile = ".env.agebox"
 
-decryption.key.path = "~/.config/cottage/identity:~/.ssh"
+decryption.key.path = ["~/.config/cottage/identity", "~/.ssh"]
 decryption.key.env = "COTTAGE_IDENTITY"
 # decryption.key.env = "AGEBOX_PRIVATE_KEYS"
 
