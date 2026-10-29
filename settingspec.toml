@@ -58,10 +58,9 @@ key1._.default.val = "val1"  # Default value for all profiles
 key1._.prod.val = "prod1"    # Override the default value when SETTINGSPEC_PROFILE=prod
 
 key2._ = {  # Strictly define different values for different profiles
-  default.null = true,   # When SETTINGSPEC_PROFILE=dev, key2=null
-  dev.val = 2,           # Unon types ae supported
+  dev.null = true,   # When SETTINGSPEC_PROFILE=dev, key2=null
   stage.val = "stage2",
-  prod.val = true,
+  prod.val = true,   # Union types are supported
 }
 
 group1.key1._.default.val = "group1val1"
