@@ -26,6 +26,10 @@ Don't program your settings. Specify • Validate • Export - in any format.
 
 ## Install
 
+[Directly download the binary](https://github.com/sayanarijit/settingspec/releases)
+
+Or install from a package registry:
+
 ```bash
 # rust: cargo-binstall/cargo
 cargo binstall --locked settingspec
