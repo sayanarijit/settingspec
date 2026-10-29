@@ -14,19 +14,24 @@
 Don't program your settings. Specify • Validate • Export - in any format.
 
 1. [Install](#install)
-2. [Concepts](#concepts)
+2. [Basic usage](#basic-usage)
+   1. [Specify settings in a single file](#specify-settings-in-a-single-file)
+   2. [Validate the specification](#validate-the-specification)
+   3. [Export the settings](#export-the-settings)
+   4. [Use the exported settings in your program](#use-the-exported-settings-in-your-program)
+3. [Concepts](#concepts)
    1. [Single file convenience](#single-file-convenience)
-   2. [Declarative profiles as environments](#declarative-profiles-as-environments)
+   2. [Strict validation of per profiles settings](#strict-validation-of-per-profiles-settings)
    3. [Language independent](#language-independent)
    4. [Easy secrets](#easy-secrets)
       1. [SecretSpec](#secretspec)
       2. [Dotenv](#dotenv)
       3. [Cottage or agebox](#cottage-or-agebox)
-3. [Learn more](#learn-more)
+4. [Learn more](#learn-more)
 
 ## Install
 
-[Directly download the binary](https://github.com/sayanarijit/settingspec/releases)
+[Directly download the binary](https://github.com/sayanarijit/settingspec/releases).
 
 Or install from a package registry:
 
@@ -50,13 +55,86 @@ docker run --rm -v $PWD:/app ghcr.io/sayanarijit/settingspec --version
 podman run --rm -v $PWD:/app ghcr.io/sayanarijit/settingspec --version
 ```
 
+## Basic usage
+
+#### Specify settings in a single file
+
+Create a file named `settingspec.toml` at the project root.
+
+```toml
+# settingspec.toml
+
+[spec]
+profile.key = "ENV"
+profile.options = ["local", "prod"]
+profile.default = "local"
+
+[settings]
+HOST._ = {
+    local.val = "127.0.0.1",
+    prod.val = "0.0.0.0",
+}
+PORT._.default.val = 8080
+```
+
+The `[spec]` section is optional. If not present, the default specification is used.
+
+The `[settings]` section contains the settings in `{key}._.{profile}.{directive} = {value}` syntax.
+
+#### Validate the specification
+
+```bash
+settingspec check
+```
+
+Ensure that all the settings are valid and consistent with the specification, no key is misisng declaration for any of the declared profiles, among other checks.
+
+#### Export the settings
+
+```bash
+# export ENV=prod
+settingspec export
+```
+
+#### Use the exported settings in your program
+
+```bash
+my-app -c settings.toml
+```
+
+`my-app` will use the following settings:
+
+```toml
+HOST = "127.0.0.1"
+PORT = 8080
+```
+
+As per our expectation, `HOST` will be `0.0.0.0` when `ENV=prod` is set.
+
 ## Concepts
 
 ### Single file convenience
 
-With a single source of truth, i.e., `settingspec.toml`, you don't need to mentally merge settings from multiple files, say `common.toml`, `dev.toml`, `prod.toml`, etc. No surprise overwrites. One file for all environments, all languages, all submodules.
+Are you tired of mentally merging settings from multiple files and debugging runtime errors due to missing or misconfigured settings?
 
-### Declarative profiles as environments
+```python
+# Fragile boilerplate code to load settings from multiple files
+def load_settings():
+    with open("common.toml") as f:
+        settings = toml.load(f)
+    if os.environ.get("ENV") == "staging":
+        with open("dev.toml") as f:
+            settings.update(toml.load(f))
+    elif os.environ.get("ENV") == "production":
+        with open("prod.toml") as f:
+            settings.update(toml.load(f))
+    resolve_environment_variables(settings)
+    return settings
+```
+
+With a single source of truth, i.e., `settingspec.toml`, you don't need to mentally merge settings from multiple files, say `common.toml`, `dev.toml`, `prod.toml`, etc. Everything is declarative. Everything is visible. No surprise value overrides, or missed overrides.
+
+### Strict validation of per profiles settings
 
 ```toml
 [spec]                               # Optional: Declare the specification here
@@ -85,7 +163,7 @@ By not defining a default value, you can ensure that you never miss adding a val
 
 ### Language independent
 
-The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, `tf`, etc., or hard-coded modules such as `.py`, `.js`, `.ts`, `.lua`, `.rs`, `.go`, `.zig`, `.c`, `.cpp`, `.java`, `.elm`, `.rb`, `.scala`, `.hs`, etc., write them to disk, print, or pipe them via stdin or even export as environment variables, allowing you to use a single `settingspec.toml` without worrying about the target language.
+The command-line tool `settingspec` can export the final settings into well-known formats such as `toml`, `json`, `yaml`, `tf`, etc., or hard-coded modules such as `.py`, `.js`, `.ts`, etc., write them to disk, print, or pipe them via stdin or even export as environment variables, allowing you to use a single `settingspec.toml` without worrying about the target language.
 
 ```toml
 [spec]
