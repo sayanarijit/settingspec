@@ -87,7 +87,7 @@ The `[settings]` section contains the settings in `{key}._.{profile}.{directive}
 settingspec check
 ```
 
-Ensure that all the settings are valid and consistent with the specification, no key is misisng declaration for any of the declared profiles, among other checks.
+Ensures that the declared settings are valid and consistent with the specification, no key is missing declaration for any of the declared profiles, among other checks.
 
 #### Export the settings
 
@@ -132,7 +132,7 @@ def load_settings():
     return settings
 ```
 
-With a single source of truth, i.e., `settingspec.toml`, you don't need to mentally merge settings from multiple files, say `common.toml`, `dev.toml`, `prod.toml`, etc. Everything is declarative. Everything is visible. No surprise value overrides, or missed overrides.
+With a single source of truth, i.e., `settingspec.toml`, everything is declarative. Everything is visible. No surprise value overrides, or missed overrides.
 
 ### Strict validation of per profiles settings
 
