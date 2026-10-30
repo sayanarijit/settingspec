@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1](https://github.com/sayanarijit/settingspec/compare/v0.10.0...v0.10.1) - 2026-10-30
+
+### Fixed
+
+- *(readme)* typo and cleanup
+
+### Other
+
+- *(doc)* include basic usage example
+- *(readme)* add direct download link
+- *(readme)* fix decryption key example
+- *(readme)* fix links
+- *(readme)* fix image link
+- *(readme)* promo
+
 ## [0.10.0](https://github.com/sayanarijit/settingspec/compare/v0.9.0...v0.10.0) - 2026-10-28
 
 ### Fixed
